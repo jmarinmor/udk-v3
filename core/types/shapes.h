@@ -1,0 +1,3 @@
+#pragma once
+
+// Contains definitions of geometric shapes like box, aabb, sphere, ...
