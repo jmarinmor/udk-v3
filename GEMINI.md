@@ -1,33 +1,71 @@
-# uncannymoon
-El propósito final de uncannymoon es ser un motor para desarrollar videojuegos o aplicaciones basadas
-en generación de gráficos en tiempo real. También debería poder servir como librería de enlace dinámico 
-o estático para poderla incorporar a proyectos.
+# Uncannymoon Game Engine
 
-## Instrucciones
-- El código debe ser crossplatform porque debe funcionar en: Windows, MAC, Linux, Android, iOS, iOS Simulator entre otros
-- Usa cmake
-- El código core sera desarrollado en C/C++
-- Puede usar vulkan, opengl, directx, openal, opencl, metal, ... El desarrollo principal se basará en vulkan y opengl
-- Tiene que tener bindings para usar la librería en proyectos hechos en Java, C#, Swift y python
-- Usa entre otras librerias: assimp, opensl, glad, glfw, freetype
+## 1. Project Overview
 
-## Arquitectura del sistema
-- Hay un código principal (core)
-- Tiene una fuerte orientación al uso de interfaces para soportar diferentes adapters
-- Es posible que sea necesario usar archivos en C para poder generar los bindings a otros lenguajes
+Uncannymoon is a real-time graphics engine for video games and real time applications. It is designed to be a flexible and extensible platform that can be used as a dynamic or static library in other projects.
 
-## Reglas de negocio
-- Es importante poder generar con cmake proyectos (librería, ejemplos, tests, ...) para poder debugear el código
+## 2. Core Technologies
 
+- **Core Language:** C/C++
+- **Build System:** CMake
+- **Graphics APIs:** Vulkan (primary), OpenGL, DirectX, Metal
+- **Audio APIs:** OpenAL, OpenSL
+- **Compute APIs:** OpenCL
+- **Key Libraries:**
+    - **Assimp:** For importing 3D models.
+    - **GLAD:** For OpenGL function loading.
+    - **GLFW:** For windowing and input.
+    - **Freetype:** For font rendering.
 
-## Estructura del proyecto
-- ./core # Codigo principal en C++
-- ./adapters # Código C++ para implementar las diferentes adaptaciones de las interfaces que hay en core
-- ./binginds # Código para generar los bindings para que el motor pueda ser usado en diferentes lenguajes
-- ./bindings/c # Aquí estará el código en C que permitirá crear bindings a otros lenguajes
-- ./bindings/java # Aquí estará el código que se tiene que generar en Java que atacará al de c. Lo mismo para los otros lenguajes como C#, python, ...
-- ./dependencies # Aquí se pondrá si es necesario las librerías de terceros que se tengan que compilar manualmente y no puedan encontrarse ni el el sistema ni en cmake
-- ./project # En este directorio se encontrará el cmake principal para compilar core y adapters
-- ./examples # Aquí irán los diferentes proyectos de ejemplos en C++ para poder usar core y adapters.
-- ./examples_bindings # Ejemplos usando otros lenguajes
-- ./tests # Aquí van los unit test
+## 3. Platform Support
+
+The engine is designed to be cross-platform and will support the following operating systems:
+
+- Windows
+- macOS
+- Linux
+- Android
+- iOS
+
+## 4. Architecture
+
+The architecture is based on a modular design with a strong emphasis on interfaces and adapters.
+
+- **Core:** The main engine code, written in C++. It defines the core interfaces for graphics, audio, and other systems.
+- **Adapters:** C++ implementations of the core interfaces for different graphics APIs and platforms. This allows for a high degree of flexibility and platform-specific optimizations.
+- **Bindings:** A C-style API will be created to allow the engine to be used from other languages. This will be the foundation for creating bindings for languages like Java, C#, Python, and Swift.
+
+## 5. Directory Structure
+
+```
+.
+├── adapters/         # C++ implementations of the core interfaces
+├── bindings/         # Language bindings
+│   ├── c/            # C API for creating bindings
+│   ├── csharp/       # C# bindings
+│   ├── java/         # Java bindings
+│   ├── python/       # Python bindings
+│   └── swift/        # Swift bindings
+├── core/             # Core C++ engine code
+├── dependencies/     # Third-party libraries
+├── examples/         # C++ examples using the engine
+├── examples_bindings/# Examples using the language bindings
+├── project/          # Main CMake project for compiling the engine
+└── tests/            # Unit tests
+```
+
+## 6. Development Workflow
+
+- **CMake:** The primary build system. It will be used to generate project files for different IDEs and platforms.
+- **Debugging:** CMake will be configured to generate projects for the engine, examples, and tests to facilitate debugging.
+
+## 7. Language Bindings
+
+- A C API will be created in the `bindings/c` directory.
+- This C API will be used to create high-level bindings for other languages.
+- The goal is to provide a seamless and idiomatic experience for developers using the engine from different languages.
+
+## 8. Dependency Management
+
+- Third-party libraries that cannot be found by CMake will be included in the `dependencies` directory.
+- CMake will be configured to build these libraries as part of the main project.
