@@ -47,6 +47,9 @@ The architecture is based on a modular design with a strong emphasis on interfac
 │   ├── python/       # Python bindings
 │   └── swift/        # Swift bindings
 ├── core/             # Core C++ engine code
+│   ├── pre/          # Preprocessor directives
+│   ├── core/         # Basic functionality (threads, time, formats, handles, simd, transformations, shapes, object definition, ...)
+│   └── apu/          # Accelerated process units
 ├── dependencies/     # Third-party libraries
 ├── examples/         # C++ examples using the engine
 ├── examples_bindings/# Examples using the language bindings

@@ -101,20 +101,31 @@ struct buffer_sampler_t
     sampler_wrap_mode_t wrap_z : 3;
 };
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// How is the buffer readed when access to an element
+// Buffer content
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum class buffer_layout_t
+enum class color_space_t
 {
-    SINGLE_ELEMENT = 0,
-    LAYOUT_1D = 1,
-    LAYOUT_2D = 2,
-    LAYOUT_3D = 3
+    UNDEFINED = 0,
+    RGB,
+    SRGB,
+    HSL,
+    CMYK,
+    EXTENDED_SRGB,
+    DISPLAY_P3,
+    DCI_P3,
+    BT709,
+    BT2020,
+    HDR10_ST2084,
+    DOLBYVISION,
+    HDR10_HLG,
+    ADOBERGB,
+    PASS_THROUGH,
+    DISPLAY_NATIVE_AMD
 };
 
-enum class buffer_object_layout_t
+enum class buffer_layout_t
 {
     SINGLE_ELEMENT = 0,
     LAYOUT_1D = 1,
@@ -122,6 +133,13 @@ enum class buffer_object_layout_t
     LAYOUT_3D = 3,
     CUBE = 4
 };
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Buffer element format
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 enum class buffer_element_layout_t
 {
@@ -141,7 +159,7 @@ enum class number_format_t
     FIXED = 3
 };
 
-enum class number_compressed_format_t
+enum class compressed_format_t
 {
     UNDEFINED,
     R4G4_UNORM_PACK8,
@@ -213,65 +231,28 @@ enum class number_compressed_format_t
     G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16,
     G16_B16R16_2PLANE_444_UNORM,
     A4R4G4B4_UNORM_PACK16,
-    A4B4G4R4_UNORM_PACK16
-};
-
-enum class number_bit_count_t
-{
-    BC_8 = 0,
-    BC_16 = 1,
-    BC_32 = 2,
-    BC_64 = 3,
-    BC_128 = 4,
-    BC_256 = 5,
-    BC_512 = 6,
-    BC_1024 = 7,
-};
-
-enum class color_space_t
-{
-    UNDEFINED = 0,
-    RGB,
-    SRGB,
-    HSL,
-    CMYK,
-    EXTENDED_SRGB,
-    DISPLAY_P3,
-    DCI_P3,
-    BT709,
-    BT2020,
-    HDR10_ST2084,
-    DOLBYVISION,
-    HDR10_HLG,
-    ADOBERGB,
-    PASS_THROUGH,
-    DISPLAY_NATIVE_AMD
-};
-
-enum class buffer_compressed_format_t
-{
-    UNDEFINED,
-    DXGI_FORMAT_BC1_UNORM,
-    DXGI_FORMAT_BC1_UNORM_SRGB,
-    DXGI_FORMAT_BC1_TYPELESS,
-    DXGI_FORMAT_BC2_UNORM,
-    DXGI_FORMAT_BC2_UNORM_SRGB,
-    DXGI_FORMAT_BC2_TYPELESS,
-    DXGI_FORMAT_BC3_UNORM,
-    DXGI_FORMAT_BC3_UNORM_SRGB,
-    DXGI_FORMAT_BC3_TYPELESS,
-    DXGI_FORMAT_BC4_UNORM,
-    DXGI_FORMAT_BC4_SNORM,
-    DXGI_FORMAT_BC4_TYPELESS,
-    DXGI_FORMAT_BC5_UNORM,
-    DXGI_FORMAT_BC5_SNORM,
-    DXGI_FORMAT_BC5_TYPELESS,
-    DXGI_FORMAT_BC6H_UF16,
-    DXGI_FORMAT_BC6H_SF16,
-    DXGI_FORMAT_BC6H_TYPELESS,
-    DXGI_FORMAT_BC7_UNORM,
-    DXGI_FORMAT_BC7_UNORM_SRGB,
-    DXGI_FORMAT_BC7_TYPELESS,
+    A4B4G4R4_UNORM_PACK16,
+    DXGI_FORMAT_BC1_UNORM_BLOCK,
+    DXGI_FORMAT_BC1_UNORM_SRGB_BLOCK,
+    DXGI_FORMAT_BC1_TYPELESS_BLOCK,
+    DXGI_FORMAT_BC2_UNORM_BLOCK,
+    DXGI_FORMAT_BC2_UNORM_SRGB_BLOCK,
+    DXGI_FORMAT_BC2_TYPELESS_BLOCK,
+    DXGI_FORMAT_BC3_UNORM_BLOCK,
+    DXGI_FORMAT_BC3_UNORM_SRGB_BLOCK,
+    DXGI_FORMAT_BC3_TYPELESS_BLOCK,
+    DXGI_FORMAT_BC4_UNORM_BLOCK,
+    DXGI_FORMAT_BC4_SNORM_BLOCK,
+    DXGI_FORMAT_BC4_TYPELESS_BLOCK,
+    DXGI_FORMAT_BC5_UNORM_BLOCK,
+    DXGI_FORMAT_BC5_SNORM_BLOCK,
+    DXGI_FORMAT_BC5_TYPELESS_BLOCK,
+    DXGI_FORMAT_BC6H_UF16_BLOCK,
+    DXGI_FORMAT_BC6H_SF16_BLOCK,
+    DXGI_FORMAT_BC6H_TYPELESS_BLOCK,
+    DXGI_FORMAT_BC7_UNORM_BLOCK,
+    DXGI_FORMAT_BC7_UNORM_SRGB_BLOCK,
+    DXGI_FORMAT_BC7_TYPELESS_BLOCK,
     ETC2_R8G8B8_UNORM_BLOCK,
     ETC2_R8G8B8_SRGB_BLOCK,
     ETC2_R8G8B8A1_UNORM_BLOCK,
@@ -310,14 +291,14 @@ enum class buffer_compressed_format_t
     ASTC_12x10_SRGB_BLOCK,
     ASTC_12x12_UNORM_BLOCK,
     ASTC_12x12_SRGB_BLOCK,
-    PVRTC1_2BPP_UNORM_BLOCK_IMG,
-    PVRTC1_4BPP_UNORM_BLOCK_IMG,
-    PVRTC2_2BPP_UNORM_BLOCK_IMG,
-    PVRTC2_4BPP_UNORM_BLOCK_IMG,
-    PVRTC1_2BPP_SRGB_BLOCK_IMG,
-    PVRTC1_4BPP_SRGB_BLOCK_IMG,
-    PVRTC2_2BPP_SRGB_BLOCK_IMG,
-    PVRTC2_4BPP_SRGB_BLOCK_IMG,
+    PVRTC1_2BPP_UNORM_BLOCK,
+    PVRTC1_4BPP_UNORM_BLOCK,
+    PVRTC2_2BPP_UNORM_BLOCK,
+    PVRTC2_4BPP_UNORM_BLOCK,
+    PVRTC1_2BPP_SRGB_BLOCK,
+    PVRTC1_4BPP_SRGB_BLOCK,
+    PVRTC2_2BPP_SRGB_BLOCK,
+    PVRTC2_4BPP_SRGB_BLOCK,
     ASTC_4x4_SFLOAT_BLOCK,
     ASTC_5x4_SFLOAT_BLOCK,
     ASTC_5x5_SFLOAT_BLOCK,
@@ -334,25 +315,30 @@ enum class buffer_compressed_format_t
     ASTC_12x12_SFLOAT_BLOCK
 };
 
+enum class number_bit_count_t
+{
+    BC_8 = 0,
+    BC_16 = 1,
+    BC_32 = 2,
+    BC_64 = 3,
+    BC_128 = 4,
+    BC_256 = 5,
+    BC_512 = 6,
+    BC_1024 = 7,
+};
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Buffer morfology: what is inside the buffer
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// - bit number 31 -> compressed: if 1, the buffer has a compressed format. A compresed format has its own layout not specified
-//                      here, for non compressed formats, following bits are usefull
-// if bit 31 is 1, the code is interpreted as following:
-//      [1 bit buffer is compressed] [8 bits color_space_t] [3 bits sampler_read_t] [20 bits compressed_format_t]
-// if bit 31 is 0, the code is interpreted as following:
-//      [1 bit buffer is compressed] [8 bits color_space_t] [3 bits sampler_read_t] 
-//      [3 bits buffer_layout_t] [3 bits buffer_object_layout_t] [5 bits buffer_element_layout_t] 
 //      [1 bit number is compressed]
-//          [1 bit] [8 bits number_compressed_format_t]
-//          [1 bit] [1 bit signed] [1 bit normalized] [2 bits number_format_t] [3 bits number_bit_count_t]
+//          [15 bits compressed_format_t]
+//          [6 bits buffer_element_layout_t] [1 bit signed] [1 bit normalized] [3 bits number_format_t] [4 bits number_bit_count_t]
 // Description bits:
 // - compressed: if 1, the buffer has a compressed format. A compresed format has its own layout not specified
 //               here, for non compressed formats, following bits are usefull
-// - buffer_layout_t: specifies the layout about how objects are disposed, for example, an array of volume textures
-// - buffer_object_layout_t: specifies the object layout, for example, a texture, a volume texture, a 1d vertex buffer, ...
 // - buffer_element_layout_t: specifies hoe single elements are disposed
 // - signed: if true, single elements are signed
 // - normalized: if true, single elements are normalized, that is, must be interpreted in range from -1 to +1
@@ -377,14 +363,12 @@ private:
     static constexpr uint32_t COMPRESSED_FORMAT_MASK = 0xFFFFF; // 20 bits
 
     // Uncompressed format fields (when bit 31 is 0)
-    static constexpr uint32_t BUFFER_LAYOUT_SHIFT = 17;
-    static constexpr uint32_t BUFFER_OBJECT_LAYOUT_SHIFT = 14;
+    static constexpr uint32_t BUFFER_OBJECT_LAYOUT_SHIFT = 15;
     static constexpr uint32_t BUFFER_ELEMENT_LAYOUT_SHIFT = 9;
     static constexpr uint32_t IS_NUMBER_COMPRESSED_SHIFT = 8;
 
-    static constexpr uint32_t BUFFER_LAYOUT_MASK = 0x7 << BUFFER_LAYOUT_SHIFT;
-    static constexpr uint32_t BUFFER_OBJECT_LAYOUT_MASK = 0x7 << BUFFER_OBJECT_LAYOUT_SHIFT;
-    static constexpr uint32_t BUFFER_ELEMENT_LAYOUT_MASK = 0x1F << BUFFER_ELEMENT_LAYOUT_SHIFT;
+    static constexpr uint32_t BUFFER_OBJECT_LAYOUT_MASK = 0xF << BUFFER_OBJECT_LAYOUT_SHIFT;
+    static constexpr uint32_t BUFFER_ELEMENT_LAYOUT_MASK = 0x3F << BUFFER_ELEMENT_LAYOUT_SHIFT;
     static constexpr uint32_t IS_NUMBER_COMPRESSED_MASK = 1 << IS_NUMBER_COMPRESSED_SHIFT;
 
     // Uncompressed number fields (when bit 8 is 1)
@@ -393,11 +377,11 @@ private:
 
     // Uncompressed non-numeric-compressed fields (when bit 8 is 0)
     static constexpr uint32_t NUMBER_BIT_COUNT_SHIFT = 0;
-    static constexpr uint32_t NUMBER_FORMAT_SHIFT = 3;
-    static constexpr uint32_t IS_NORMALIZED_SHIFT = 5;
-    static constexpr uint32_t IS_SIGNED_SHIFT = 6;
+    static constexpr uint32_t NUMBER_FORMAT_SHIFT = 4;
+    static constexpr uint32_t IS_NORMALIZED_SHIFT = 6;
+    static constexpr uint32_t IS_SIGNED_SHIFT = 7;
 
-    static constexpr uint32_t NUMBER_BIT_COUNT_MASK = 0x7 << NUMBER_BIT_COUNT_SHIFT; // 3 bits
+    static constexpr uint32_t NUMBER_BIT_COUNT_MASK = 0xF << NUMBER_BIT_COUNT_SHIFT; // 4 bits
     static constexpr uint32_t NUMBER_FORMAT_MASK = 0x3 << NUMBER_FORMAT_SHIFT; // 2 bits
     static constexpr uint32_t IS_NORMALIZED_MASK = 1 << IS_NORMALIZED_SHIFT;
     static constexpr uint32_t IS_SIGNED_MASK = 1 << IS_SIGNED_SHIFT;
@@ -417,11 +401,10 @@ public:
     }
 
     // Constructor for uncompressed, number-compressed formats
-    inline buffer_format_t(number_compressed_format_t number_compressed_format, buffer_layout_t buffer_layout, buffer_object_layout_t buffer_object_layout, buffer_element_layout_t buffer_element_layout, color_space_t color_space = color_space_t::UNDEFINED, sampler_read_t color_space_transfer = sampler_read_t::NEAREST)
+    inline buffer_format_t(number_compressed_format_t number_compressed_format, buffer_layout_t buffer_object_layout, buffer_element_layout_t buffer_element_layout, color_space_t color_space = color_space_t::UNDEFINED, sampler_read_t color_space_transfer = sampler_read_t::NEAREST)
     {
         code = (static_cast<uint32_t>(color_space) << COLOR_SPACE_SHIFT) |
                (static_cast<uint32_t>(color_space_transfer) << COLOR_SPACE_TRANSFER_SHIFT) |
-               (static_cast<uint32_t>(buffer_layout) << BUFFER_LAYOUT_SHIFT) |
                (static_cast<uint32_t>(buffer_object_layout) << BUFFER_OBJECT_LAYOUT_SHIFT) |
                (static_cast<uint32_t>(buffer_element_layout) << BUFFER_ELEMENT_LAYOUT_SHIFT) |
                (1 << IS_NUMBER_COMPRESSED_SHIFT) |
@@ -429,11 +412,10 @@ public:
     }
 
     // Constructor for uncompressed, non-number-compressed formats
-    inline buffer_format_t(number_bit_count_t number_bit_count, number_format_t number_format, bool is_normalized, bool is_signed, buffer_layout_t buffer_layout, buffer_object_layout_t buffer_object_layout, buffer_element_layout_t buffer_element_layout, color_space_t color_space = color_space_t::UNDEFINED, sampler_read_t color_space_transfer = sampler_read_t::NEAREST)
+    inline buffer_format_t(buffer_layout_t buffer_object_layout, buffer_element_layout_t buffer_element_layout, bool is_signed, bool is_normalized, number_format_t number_format, number_bit_count_t number_bit_count, color_space_t color_space = color_space_t::UNDEFINED, sampler_read_t color_space_transfer = sampler_read_t::NEAREST)
     {
         code = (static_cast<uint32_t>(color_space) << COLOR_SPACE_SHIFT) |
                (static_cast<uint32_t>(color_space_transfer) << COLOR_SPACE_TRANSFER_SHIFT) |
-               (static_cast<uint32_t>(buffer_layout) << BUFFER_LAYOUT_SHIFT) |
                (static_cast<uint32_t>(buffer_object_layout) << BUFFER_OBJECT_LAYOUT_SHIFT) |
                (static_cast<uint32_t>(buffer_element_layout) << BUFFER_ELEMENT_LAYOUT_SHIFT) |
                (static_cast<uint32_t>(is_signed) << IS_SIGNED_SHIFT) |
@@ -441,6 +423,27 @@ public:
                (static_cast<uint32_t>(number_format) << NUMBER_FORMAT_SHIFT) |
                (static_cast<uint32_t>(number_bit_count) << NUMBER_BIT_COUNT_SHIFT);
     }
+
+    inline buffer_format_t(buffer_layout_t buffer_object_layout, buffer_element_layout_t buffer_element_layout, bool is_signed, bool is_normalized, number_format_t number_format, int number_bit_count, color_space_t color_space = color_space_t::UNDEFINED, sampler_read_t color_space_transfer = sampler_read_t::NEAREST)
+    {
+        code = (static_cast<uint32_t>(color_space) << COLOR_SPACE_SHIFT) |
+               (static_cast<uint32_t>(color_space_transfer) << COLOR_SPACE_TRANSFER_SHIFT) |
+               (static_cast<uint32_t>(buffer_object_layout) << BUFFER_OBJECT_LAYOUT_SHIFT) |
+               (static_cast<uint32_t>(buffer_element_layout) << BUFFER_ELEMENT_LAYOUT_SHIFT) |
+               (static_cast<uint32_t>(is_signed) << IS_SIGNED_SHIFT) |
+               (static_cast<uint32_t>(is_normalized) << IS_NORMALIZED_SHIFT) |
+               (static_cast<uint32_t>(number_format) << NUMBER_FORMAT_SHIFT) |
+               (static_cast<uint32_t>(number_bit_count >> 4) << NUMBER_BIT_COUNT_SHIFT);
+    }
+
+    // Common format helpers
+    static constexpr buffer_format_t SINGLE_R8G8B8A8_UNORM() { return buffer_format_t(buffer_layout_t::SINGLE_ELEMENT, buffer_element_layout_t::VECTOR_4, false, true, number_format_t::INTEGER, 8); }
+    static constexpr buffer_format_t SINGLE_R8G8B8A8_SNORM() { return buffer_format_t(buffer_layout_t::SINGLE_ELEMENT, buffer_element_layout_t::VECTOR_4, true, true, number_format_t::INTEGER, 8); }
+    static constexpr buffer_format_t SINGLE_R8_UNORM() { return buffer_format_t(buffer_layout_t::SINGLE_ELEMENT, buffer_element_layout_t::SINGLE_ELEMENT, false, true, number_format_t::INTEGER, 8); }
+    static constexpr buffer_format_t SINGLE_R32_SFLOAT() { return buffer_format_t(buffer_layout_t::SINGLE_ELEMENT, buffer_element_layout_t::SINGLE_ELEMENT, true, false, number_format_t::FLOAT, 8); }
+    static constexpr buffer_format_t SINGLE_R32G32_SFLOAT() { return buffer_format_t(buffer_layout_t::SINGLE_ELEMENT, buffer_element_layout_t::VECTOR_2, true, false, number_format_t::FLOAT, 8); }
+    static constexpr buffer_format_t SINGLE_R32G32B32_SFLOAT() { return buffer_format_t(buffer_layout_t::SINGLE_ELEMENT, buffer_element_layout_t::VECTOR_3, true, false, number_format_t::FLOAT, 8); }
+    static constexpr buffer_format_t SINGLE_R32G32B32A32_SFLOAT() { return buffer_format_t(buffer_layout_t::SINGLE_ELEMENT, buffer_element_layout_t::VECTOR_4, true, false, number_format_t::FLOAT, 8); }
 
     // Accessors
     inline bool is_compressed() const { return (code & IS_COMPRESSED_MASK) != 0; }
@@ -453,23 +456,21 @@ public:
     inline void is_normalized(bool value) { code = (code & ~IS_NORMALIZED_MASK) | (static_cast<uint32_t>(value) << IS_NORMALIZED_SHIFT); }
 
     inline color_space_t color_space() const { return static_cast<color_space_t>((code & COLOR_SPACE_MASK) >> COLOR_SPACE_SHIFT); }
-    inline void color_space(color_space_t value) { code = (code & ~COLOR_SPACE_MASK) | (static_cast<uint32_t>(value) << COLOR_SPACE_SHIFT); }
+    inline buffer_format_t& color_space(color_space_t value) { code = (code & ~COLOR_SPACE_MASK) | (static_cast<uint32_t>(value) << COLOR_SPACE_SHIFT); return *this; }
     inline sampler_read_t color_space_transfer() const { return static_cast<sampler_read_t>((code & COLOR_SPACE_TRANSFER_MASK) >> COLOR_SPACE_TRANSFER_SHIFT); }
-    inline void color_space_transfer(sampler_read_t value) { code = (code & ~COLOR_SPACE_TRANSFER_MASK) | (static_cast<uint32_t>(value) << COLOR_SPACE_TRANSFER_SHIFT); }
+    inline buffer_format_t& color_space_transfer(sampler_read_t value) { code = (code & ~COLOR_SPACE_TRANSFER_MASK) | (static_cast<uint32_t>(value) << COLOR_SPACE_TRANSFER_SHIFT); return *this; }
     inline buffer_compressed_format_t compressed_format() const { return static_cast<buffer_compressed_format_t>((code & COMPRESSED_FORMAT_MASK) >> COMPRESSED_FORMAT_SHIFT); }
-    inline void compressed_format(buffer_compressed_format_t value) { code = (code & ~COMPRESSED_FORMAT_MASK) | (static_cast<uint32_t>(value) << COMPRESSED_FORMAT_SHIFT); }
-    inline buffer_layout_t buffer_layout() const { return static_cast<buffer_layout_t>((code & BUFFER_LAYOUT_MASK) >> BUFFER_LAYOUT_SHIFT); }
-    inline void buffer_layout(buffer_layout_t value) { code = (code & ~BUFFER_LAYOUT_MASK) | (static_cast<uint32_t>(value) << BUFFER_LAYOUT_SHIFT); }
-    inline buffer_object_layout_t object_layout() const { return static_cast<buffer_object_layout_t>((code & BUFFER_OBJECT_LAYOUT_MASK) >> BUFFER_OBJECT_LAYOUT_SHIFT); }
-    inline void object_layout(buffer_object_layout_t value) { code = (code & ~BUFFER_OBJECT_LAYOUT_MASK) | (static_cast<uint32_t>(value) << BUFFER_OBJECT_LAYOUT_SHIFT); }
+    inline buffer_format_t& compressed_format(buffer_compressed_format_t value) { code = (code & ~COMPRESSED_FORMAT_MASK) | (static_cast<uint32_t>(value) << COMPRESSED_FORMAT_SHIFT); return *this; }
+    inline buffer_layout_t object_layout() const { return static_cast<buffer_layout_t>((code & BUFFER_OBJECT_LAYOUT_MASK) >> BUFFER_OBJECT_LAYOUT_SHIFT); }
+    inline buffer_format_t& object_layout(buffer_layout_t value) { code = (code & ~BUFFER_OBJECT_LAYOUT_MASK) | (static_cast<uint32_t>(value) << BUFFER_OBJECT_LAYOUT_SHIFT); return *this; }
     inline buffer_element_layout_t element_layout() const { return static_cast<buffer_element_layout_t>((code & BUFFER_ELEMENT_LAYOUT_MASK) >> BUFFER_ELEMENT_LAYOUT_SHIFT); }
-    inline void element_layout(buffer_element_layout_t value) { code = (code & ~BUFFER_ELEMENT_LAYOUT_MASK) | (static_cast<uint32_t>(value) << BUFFER_ELEMENT_LAYOUT_SHIFT); }
+    inline buffer_format_t& element_layout(buffer_element_layout_t value) { code = (code & ~BUFFER_ELEMENT_LAYOUT_MASK) | (static_cast<uint32_t>(value) << BUFFER_ELEMENT_LAYOUT_SHIFT); return *this; }
     inline number_compressed_format_t number_compressed_format() const { return static_cast<number_compressed_format_t>((code & NUMBER_COMPRESSED_FORMAT_MASK) >> NUMBER_COMPRESSED_FORMAT_SHIFT); }
-    inline void number_compressed_format(number_compressed_format_t value) { code = (code & ~NUMBER_COMPRESSED_FORMAT_MASK) | (static_cast<uint32_t>(value) << NUMBER_COMPRESSED_FORMAT_SHIFT); }
+    inline buffer_format_t& number_compressed_format(number_compressed_format_t value) { code = (code & ~NUMBER_COMPRESSED_FORMAT_MASK) | (static_cast<uint32_t>(value) << NUMBER_COMPRESSED_FORMAT_SHIFT); return *this; }
     inline number_format_t number_format() const { return static_cast<number_format_t>((code & NUMBER_FORMAT_MASK) >> NUMBER_FORMAT_SHIFT); }
-    inline void number_format(number_format_t value) { code = (code & ~NUMBER_FORMAT_MASK) | (static_cast<uint32_t>(value) << NUMBER_FORMAT_SHIFT); }
+    inline buffer_format_t& number_format(number_format_t value) { code = (code & ~NUMBER_FORMAT_MASK) | (static_cast<uint32_t>(value) << NUMBER_FORMAT_SHIFT); return *this; }
     inline number_bit_count_t number_bit_count() const { return static_cast<number_bit_count_t>((code & NUMBER_BIT_COUNT_MASK) >> NUMBER_BIT_COUNT_SHIFT); }
-    inline void number_bit_count(number_bit_count_t value) { code = (code & ~NUMBER_BIT_COUNT_MASK) | (static_cast<uint32_t>(value) << NUMBER_BIT_COUNT_SHIFT); }
+    inline buffer_format_t& number_bit_count(number_bit_count_t value) { code = (code & ~NUMBER_BIT_COUNT_MASK) | (static_cast<uint32_t>(value) << NUMBER_BIT_COUNT_SHIFT); return *this; }
 
     inline int element_bit_count() const { return 1 << int(number_bit_count()); }
     inline void element_bit_count(int value) { number_bit_count(number_bit_count_t(value >> 4)); }
