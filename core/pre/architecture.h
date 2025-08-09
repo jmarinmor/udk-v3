@@ -43,7 +43,7 @@
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__)
 #   define CPU_ARCH    (CPU_X86_BIT)
 #elif  defined(_M_X64)
-#   dfine CPU_ARCH      (CPU_X64_BIT)
+#   define CPU_ARCH      (CPU_X64_BIT)
 #elif defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM)
 #   define CPU_ARCH     (CPU_ARM_BIT)
 #elif defined(__mips__ )
