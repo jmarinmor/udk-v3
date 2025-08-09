@@ -141,6 +141,43 @@ enum class number_format_t
     FIXED = 3
 };
 
+enum class number_compressed_format_t
+{
+    UNDEFINED = 0,
+    R4G4_UNORM_PACK8,
+    R4G4B4A4_UNORM_PACK16,
+    B4G4R4A4_UNORM_PACK16,
+    R5G6B5_UNORM_PACK16,
+    B5G6R5_UNORM_PACK16,
+    R5G5B5A1_UNORM_PACK16,
+    B5G5R5A1_UNORM_PACK16,
+    A1R5G5B5_UNORM_PACK16,
+    A2R10G10B10_UNORM_PACK32,
+    A2R10G10B10_SNORM_PACK32,
+    A2R10G10B10_USCALED_PACK32,
+    A2R10G10B10_SSCALED_PACK32,
+    A2R10G10B10_UINT_PACK32,
+    A2R10G10B10_SINT_PACK32,
+    A2B10G10R10_UNORM_PACK32,
+    A2B10G10R10_SNORM_PACK32,
+    A2B10G10R10_USCALED_PACK32,
+    A2B10G10R10_SSCALED_PACK32,
+    A2B10G10R10_UINT_PACK32,
+    A2B10G10R10_SINT_PACK32
+};
+
+enum class number_bit_count_t
+{
+    BC_8 = 0,
+    BC_16 = 1,
+    BC_32 = 2,
+    BC_64 = 3,
+    BC_128 = 4,
+    BC_256 = 5,
+    BC_512 = 6,
+    BC_1024 = 7,
+};
+
 enum class color_space_t
 {
     UNDEFINED = 0,
@@ -161,17 +198,9 @@ enum class color_space_t
     DISPLAY_NATIVE_AMD
 };
 
-enum class compressed_format_t
+enum class buffer_compressed_format_t
 {
     UNDEFINED = 0,
-    R4G4_UNORM_PACK8 = 1,
-    R4G4B4A4_UNORM_PACK16 = 2,
-    B4G4R4A4_UNORM_PACK16 = 3,
-    R5G6B5_UNORM_PACK16 = 4,
-    B5G6R5_UNORM_PACK16 = 5,
-    R5G5B5A1_UNORM_PACK16 = 6,
-    B5G5R5A1_UNORM_PACK16 = 7,
-    A1R5G5B5_UNORM_PACK16 = 8,
     D3DFMT_DXT1,
     D3DFMT_DXT2,
     D3DFMT_DXT3,
@@ -206,38 +235,29 @@ enum class compressed_format_t
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Buffer morfology: what is inside the buffer
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// buffer_format_t
-// buffer formats are separated into two sections
-// - first 16 bits 
-// - second 16 bits 
-// Description bits:
-// - 1 bit -> compressed: if 1, the buffer has a compressed format. A compresed format has its own layout not specified
+// - bit number 31 -> compressed: if 1, the buffer has a compressed format. A compresed format has its own layout not specified
 //                      here, for non compressed formats, following bits are usefull
-// - 2 bits -> buffer_layout_t: specifies the layout about how objects are disposed, for example, an array of volume textures
-// - 3 bits -> buffer_object_layout_t: specifies the object layout, for example, a texture, a volume texture, a 1d vertex buffer, ...
-// - 4 bits -> buffer_element_layout_t: specifies hoe single elements are disposed
-// - 1 bit -> signed: if true, single elements are signed
-// - 1 bit -> normalized: if true, single elements are normalized, that is, must be interpreted in range from -1 to +1
-// - 2 bits -> number format: format of every single element
+// if bit 31 is 1, the code is interpreted as following:
+//      [1 bit buffer is compressed] [8 bits color_space_t] [3 bits sampler_read_t] [20 bits compressed_format_t]
+// if bit 31 is 0, the code is interpreted as following:
+//      [1 bit buffer is compressed] [8 bits color_space_t] [3 bits sampler_read_t] 
+//      [3 bits buffer_layout_t] [3 bits buffer_object_layout_t] [5 bits buffer_element_layout_t] 
+//      [1 bit number is compressed]
+//          [1 bit] [8 bits number_compressed_format_t]
+//          [1 bit] [1 bit signed] [1 bit normalized] [2 bits number_format_t] [3 bits number_bit_count_t]
+// Description bits:
+// - compressed: if 1, the buffer has a compressed format. A compresed format has its own layout not specified
+//               here, for non compressed formats, following bits are usefull
+// - buffer_layout_t: specifies the layout about how objects are disposed, for example, an array of volume textures
+// - buffer_object_layout_t: specifies the object layout, for example, a texture, a volume texture, a 1d vertex buffer, ...
+// - buffer_element_layout_t: specifies hoe single elements are disposed
+// - signed: if true, single elements are signed
+// - normalized: if true, single elements are normalized, that is, must be interpreted in range from -1 to +1
+// - number format: format of every single element
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 union buffer_format_t
 {
-    struct compressed_format_t
-    {
-
-    };
-    struct uncompressed_format_t
-    {
-        bool compressed : 1;
-        buffer_layout_t buffer_layout : 2;
-        buffer_object_layout_t object_layout : 3;
-        buffer_element_layout_t element_layout : 4;
-        bool is_signed : 1;
-        bool is_normalized : 1;
-        number_format_t format : 2;
-    };
+    uint32_t code;
 };
 
 
