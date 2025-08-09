@@ -1,10 +1,17 @@
-#ifndef UDK_PRE_H
-#define UDK_PRE_H
+#ifndef PRE_H
+#define PRE_H
 
-#include "pre/architecture.h"
-#include "pre/build_mode.h"
-#include "pre/compiler.h"
-#include "pre/dll.h"
-#include "pre/os.h"
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Configuration
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#define PRE_MESSAGES_ENABLED	1
+#define PRE_MESSAGES_DISABLED 	0
+#define	PRE_MESSAGES	PRE_MESSAGES_DISABLED
 
-#endif // UDK_PRE_H
+#include <pre/compiler.h>
+#include <pre/architecture.h>
+#include <pre/os.h>
+#include <pre/lang.h>
+
+#endif // PRE_H
+
