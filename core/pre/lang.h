@@ -109,7 +109,16 @@
 #define INL_FNC(_Return)				FORCE_INLINE _Return
 #define OFL_FNC(_Return)				FORCE_OFFLINE _Return
 
+#define PRE_CTORS(_T) \
+		_T(); \
+		_T(_T&&); \
+		_T(const _T&); \
+		~_T(); \
+		auto operator = (const _T&) -> _T&;
 
+#define PRE_ENUM_AND_OR(_T) \
+	FORCE_INLINE _T operator | (_T a, _T b) {return _T(int(a)|int(b));} \
+	FORCE_INLINE int operator & (_T a, _T b) {return int(int(a)&int(b));}
 
 
 #endif // PRE_LANG_H

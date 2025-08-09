@@ -1,7 +1,7 @@
 #ifndef __CORE_PTR_HEADER__
 #define __CORE_PTR_HEADER__
 
-#include <xtd/critical_section.h>
+#include <atomic/critical_section.h>
 
 namespace rav
 {
