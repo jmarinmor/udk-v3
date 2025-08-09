@@ -358,9 +358,133 @@ enum class buffer_compressed_format_t
 // - normalized: if true, single elements are normalized, that is, must be interpreted in range from -1 to +1
 // - number format: format of every single element
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-union buffer_format_t
+struct buffer_format_t
 {
     uint32_t code;
+
+private:
+    // Common fields
+    static constexpr uint32_t IS_COMPRESSED_SHIFT = 31;
+    static constexpr uint32_t COLOR_SPACE_SHIFT = 23;
+    static constexpr uint32_t SAMPLER_READ_SHIFT = 20;
+
+    static constexpr uint32_t IS_COMPRESSED_MASK = 1 << IS_COMPRESSED_SHIFT;
+    static constexpr uint32_t COLOR_SPACE_MASK = 0xFF << COLOR_SPACE_SHIFT;
+    static constexpr uint32_t SAMPLER_READ_MASK = 0x7 << SAMPLER_READ_SHIFT;
+
+    // Compressed format fields (when bit 31 is 1)
+    static constexpr uint32_t COMPRESSED_FORMAT_SHIFT = 0;
+    static constexpr uint32_t COMPRESSED_FORMAT_MASK = 0xFFFFF; // 20 bits
+
+    // Uncompressed format fields (when bit 31 is 0)
+    static constexpr uint32_t BUFFER_LAYOUT_SHIFT = 17;
+    static constexpr uint32_t BUFFER_OBJECT_LAYOUT_SHIFT = 14;
+    static constexpr uint32_t BUFFER_ELEMENT_LAYOUT_SHIFT = 9;
+    static constexpr uint32_t IS_NUMBER_COMPRESSED_SHIFT = 8;
+
+    static constexpr uint32_t BUFFER_LAYOUT_MASK = 0x7 << BUFFER_LAYOUT_SHIFT;
+    static constexpr uint32_t BUFFER_OBJECT_LAYOUT_MASK = 0x7 << BUFFER_OBJECT_LAYOUT_SHIFT;
+    static constexpr uint32_t BUFFER_ELEMENT_LAYOUT_MASK = 0x1F << BUFFER_ELEMENT_LAYOUT_SHIFT;
+    static constexpr uint32_t IS_NUMBER_COMPRESSED_MASK = 1 << IS_NUMBER_COMPRESSED_SHIFT;
+
+    // Uncompressed number fields (when bit 8 is 1)
+    static constexpr uint32_t NUMBER_COMPRESSED_FORMAT_SHIFT = 0;
+    static constexpr uint32_t NUMBER_COMPRESSED_FORMAT_MASK = 0xFF; // 8 bits
+
+    // Uncompressed non-numeric-compressed fields (when bit 8 is 0)
+    static constexpr uint32_t NUMBER_BIT_COUNT_SHIFT = 0;
+    static constexpr uint32_t NUMBER_FORMAT_SHIFT = 3;
+    static constexpr uint32_t IS_NORMALIZED_SHIFT = 5;
+    static constexpr uint32_t IS_SIGNED_SHIFT = 6;
+
+    static constexpr uint32_t NUMBER_BIT_COUNT_MASK = 0x7 << NUMBER_BIT_COUNT_SHIFT; // 3 bits
+    static constexpr uint32_t NUMBER_FORMAT_MASK = 0x3 << NUMBER_FORMAT_SHIFT; // 2 bits
+    static constexpr uint32_t IS_NORMALIZED_MASK = 1 << IS_NORMALIZED_SHIFT;
+    static constexpr uint32_t IS_SIGNED_MASK = 1 << IS_SIGNED_SHIFT;
+
+public:
+    // Constructors
+    inline buffer_format_t() : code(0) {}
+    inline buffer_format_t(uint32_t c) : code(c) {}
+
+    // Constructor for compressed formats
+    inline buffer_format_t(buffer_compressed_format_t format, color_space_t cs = color_space_t::UNDEFINED, sampler_read_t sr = sampler_read_t::NEAREST)
+    {
+        code = (1 << IS_COMPRESSED_SHIFT) |
+               (static_cast<uint32_t>(cs) << COLOR_SPACE_SHIFT) |
+               (static_cast<uint32_t>(sr) << SAMPLER_READ_SHIFT) |
+               (static_cast<uint32_t>(format) << COMPRESSED_FORMAT_SHIFT);
+    }
+
+    // Constructor for uncompressed, number-compressed formats
+    inline buffer_format_t(number_compressed_format_t num_format, buffer_layout_t bl, buffer_object_layout_t bol, buffer_element_layout_t bel, color_space_t cs = color_space_t::UNDEFINED, sampler_read_t sr = sampler_read_t::NEAREST)
+    {
+        code = (static_cast<uint32_t>(cs) << COLOR_SPACE_SHIFT) |
+               (static_cast<uint32_t>(sr) << SAMPLER_READ_SHIFT) |
+               (static_cast<uint32_t>(bl) << BUFFER_LAYOUT_SHIFT) |
+               (static_cast<uint32_t>(bol) << BUFFER_OBJECT_LAYOUT_SHIFT) |
+               (static_cast<uint32_t>(bel) << BUFFER_ELEMENT_LAYOUT_SHIFT) |
+               (1 << IS_NUMBER_COMPRESSED_SHIFT) |
+               (static_cast<uint32_t>(num_format) << NUMBER_COMPRESSED_FORMAT_SHIFT);
+    }
+
+    // Constructor for uncompressed, non-number-compressed formats
+    inline buffer_format_t(number_bit_count_t nbc, number_format_t nf, bool normalized, bool sign, buffer_layout_t bl, buffer_object_layout_t bol, buffer_element_layout_t bel, color_space_t cs = color_space_t::UNDEFINED, sampler_read_t sr = sampler_read_t::NEAREST)
+    {
+        code = (static_cast<uint32_t>(cs) << COLOR_SPACE_SHIFT) |
+               (static_cast<uint32_t>(sr) << SAMPLER_READ_SHIFT) |
+               (static_cast<uint32_t>(bl) << BUFFER_LAYOUT_SHIFT) |
+               (static_cast<uint32_t>(bol) << BUFFER_OBJECT_LAYOUT_SHIFT) |
+               (static_cast<uint32_t>(bel) << BUFFER_ELEMENT_LAYOUT_SHIFT) |
+               (static_cast<uint32_t>(sign) << IS_SIGNED_SHIFT) |
+               (static_cast<uint32_t>(normalized) << IS_NORMALIZED_SHIFT) |
+               (static_cast<uint32_t>(nf) << NUMBER_FORMAT_SHIFT) |
+               (static_cast<uint32_t>(nbc) << NUMBER_BIT_COUNT_SHIFT);
+    }
+
+    // Getters and Setters
+    inline bool is_compressed() const { return (code & IS_COMPRESSED_MASK) != 0; }
+    inline void set_is_compressed(bool compressed) { code = (code & ~IS_COMPRESSED_MASK) | (static_cast<uint32_t>(compressed) << IS_COMPRESSED_SHIFT); }
+
+    inline color_space_t get_color_space() const { return static_cast<color_space_t>((code & COLOR_SPACE_MASK) >> COLOR_SPACE_SHIFT); }
+    inline void set_color_space(color_space_t cs) { code = (code & ~COLOR_SPACE_MASK) | (static_cast<uint32_t>(cs) << COLOR_SPACE_SHIFT); }
+
+    inline sampler_read_t get_sampler_read() const { return static_cast<sampler_read_t>((code & SAMPLER_READ_MASK) >> SAMPLER_READ_SHIFT); }
+    inline void set_sampler_read(sampler_read_t sr) { code = (code & ~SAMPLER_READ_MASK) | (static_cast<uint32_t>(sr) << SAMPLER_READ_SHIFT); }
+
+    // Compressed format accessors (valid only if is_compressed() is true)
+    inline buffer_compressed_format_t get_compressed_format() const { return static_cast<buffer_compressed_format_t>((code & COMPRESSED_FORMAT_MASK) >> COMPRESSED_FORMAT_SHIFT); }
+    inline void set_compressed_format(buffer_compressed_format_t format) { code = (code & ~COMPRESSED_FORMAT_MASK) | (static_cast<uint32_t>(format) << COMPRESSED_FORMAT_SHIFT); }
+
+    // Uncompressed format accessors (valid only if is_compressed() is false)
+    inline buffer_layout_t get_buffer_layout() const { return static_cast<buffer_layout_t>((code & BUFFER_LAYOUT_MASK) >> BUFFER_LAYOUT_SHIFT); }
+    inline void set_buffer_layout(buffer_layout_t bl) { code = (code & ~BUFFER_LAYOUT_MASK) | (static_cast<uint32_t>(bl) << BUFFER_LAYOUT_SHIFT); }
+
+    inline buffer_object_layout_t get_buffer_object_layout() const { return static_cast<buffer_object_layout_t>((code & BUFFER_OBJECT_LAYOUT_MASK) >> BUFFER_OBJECT_LAYOUT_SHIFT); }
+    inline void set_buffer_object_layout(buffer_object_layout_t bol) { code = (code & ~BUFFER_OBJECT_LAYOUT_MASK) | (static_cast<uint32_t>(bol) << BUFFER_OBJECT_LAYOUT_SHIFT); }
+
+    inline buffer_element_layout_t get_buffer_element_layout() const { return static_cast<buffer_element_layout_t>((code & BUFFER_ELEMENT_LAYOUT_MASK) >> BUFFER_ELEMENT_LAYOUT_SHIFT); }
+    inline void set_buffer_element_layout(buffer_element_layout_t bel) { code = (code & ~BUFFER_ELEMENT_LAYOUT_MASK) | (static_cast<uint32_t>(bel) << BUFFER_ELEMENT_LAYOUT_SHIFT); }
+
+    inline bool is_number_compressed() const { return (code & IS_NUMBER_COMPRESSED_MASK) != 0; }
+    inline void set_is_number_compressed(bool num_compressed) { code = (code & ~IS_NUMBER_COMPRESSED_MASK) | (static_cast<uint32_t>(num_compressed) << IS_NUMBER_COMPRESSED_SHIFT); }
+
+    // Number-compressed format accessors (valid only if is_compressed() is false and is_number_compressed() is true)
+    inline number_compressed_format_t get_number_compressed_format() const { return static_cast<number_compressed_format_t>((code & NUMBER_COMPRESSED_FORMAT_MASK) >> NUMBER_COMPRESSED_FORMAT_SHIFT); }
+    inline void set_number_compressed_format(number_compressed_format_t num_format) { code = (code & ~NUMBER_COMPRESSED_FORMAT_MASK) | (static_cast<uint32_t>(num_format) << NUMBER_COMPRESSED_FORMAT_SHIFT); }
+
+    // Non-number-compressed format accessors (valid only if is_compressed() is false and is_number_compressed() is false)
+    inline bool is_signed() const { return (code & IS_SIGNED_MASK) != 0; }
+    inline void set_is_signed(bool sign) { code = (code & ~IS_SIGNED_MASK) | (static_cast<uint32_t>(sign) << IS_SIGNED_SHIFT); }
+
+    inline bool is_normalized() const { return (code & IS_NORMALIZED_MASK) != 0; }
+    inline void set_is_normalized(bool normalized) { code = (code & ~IS_NORMALIZED_MASK) | (static_cast<uint32_t>(normalized) << IS_NORMALIZED_SHIFT); }
+
+    inline number_format_t get_number_format() const { return static_cast<number_format_t>((code & NUMBER_FORMAT_MASK) >> NUMBER_FORMAT_SHIFT); }
+    inline void set_number_format(number_format_t nf) { code = (code & ~NUMBER_FORMAT_MASK) | (static_cast<uint32_t>(nf) << NUMBER_FORMAT_SHIFT); }
+
+    inline number_bit_count_t get_number_bit_count() const { return static_cast<number_bit_count_t>((code & NUMBER_BIT_COUNT_MASK) >> NUMBER_BIT_COUNT_SHIFT); }
+    inline void set_number_bit_count(number_bit_count_t nbc) { code = (code & ~NUMBER_BIT_COUNT_MASK) | (static_cast<uint32_t>(nbc) << NUMBER_BIT_COUNT_SHIFT); }
 };
 
 
