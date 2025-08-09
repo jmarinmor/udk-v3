@@ -341,8 +341,7 @@ enum class number_bit_count_t
 // |
 // +- if 1 (Compressed format):
 // |   |
-// |   +-- Bits 10-14: Unused (5 bits)
-// |   +-- Bits 0-9: compressed_format_t (10 bits for compressed format enum, up to 1024 formats)
+// |   +-- Bits 0-14: compressed_format_t (15 bits for compressed format enum)
 // |
 // +- if 0 (Uncompressed format):
 //     |
@@ -364,7 +363,7 @@ private:
 
     // Compressed format fields (when bit 15 is 1)
     static constexpr uint16_t COMPRESSED_FORMAT_SHIFT = 0;
-    static constexpr uint16_t COMPRESSED_FORMAT_MASK = 0x3FF; // 10 bits, up to 1024 formats
+    static constexpr uint16_t COMPRESSED_FORMAT_MASK = 0x7FFF; // 15 bits
 
     // Uncompressed format fields (when bit 15 is 0)
     static constexpr uint16_t BUFFER_ELEMENT_LAYOUT_SHIFT = 9;
@@ -434,4 +433,3 @@ public:
     inline int byte_count(int width, int height) const { return byte_count() * width * height; }
     inline int byte_count(int width, int height, int depth) const { return byte_count() * width * height * depth; }
 };
-
