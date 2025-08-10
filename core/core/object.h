@@ -2,6 +2,9 @@
 
 #include <stdint.h>
 
+#include <pre.h>
+#include <core/atomic.h>
+
 struct handle_t
 {
 	enum type_t {UNKNOWN, HANDLE_WINDOWS, HANDLE_OPENGL, HANDLE_VULKAN, HANDLE_DIRECTX,
@@ -29,7 +32,7 @@ struct string_t
 	void* m;
 	
 	public:
-	CTORS(string_t)
+	PRE_CTORS(string_t)
 	string_t(const char*);
 
 	public:
@@ -56,11 +59,6 @@ struct handled_object_t : public object_t
 
 
 
-
-#ifndef __CORE_PTR_HEADER__
-#define __CORE_PTR_HEADER__
-
-#include <atomic/critical_section.h>
 
 namespace rav
 {
@@ -809,5 +807,3 @@ namespace rav
 		FORCE_INLINE	auto get() const -> const T* {return ptr;}
 	};
 }
-
-#endif

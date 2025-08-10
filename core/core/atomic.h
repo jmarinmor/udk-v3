@@ -17,6 +17,9 @@ extern "C"
 	DLL_FNC(void)	spinlock_lock(volatile int*);
 	DLL_FNC(void)	spinlock_unlock(volatile int*);
 
+	DLL_FNC(void)	memory_lock(const void*);
+	DLL_FNC(void)	memory_unlock(const void*);
+
 	DLL_FNC(unsigned long long)	get_clock_tick();
 	DLL_FNC(unsigned long long)	get_time();
 	DLL_FNC(unsigned long long)	get_ellapsed_nanoseconds(unsigned long long  i0,unsigned long long  i1);
