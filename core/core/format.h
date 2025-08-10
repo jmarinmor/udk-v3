@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <cassert>
 #include <pre.h>
 
 
@@ -12,10 +13,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-enum class vexel_layout_t
+enum class vexel_layout_t : uint16_t
 {
     UNKNOWN = 0,
     SINGLE_ELEMENT = 1,
+    VECTOR_1 = 1,
     VECTOR_2 = 2,
     VECTOR_3 = 3,
     VECTOR_4 = 4,
@@ -24,67 +26,6 @@ enum class vexel_layout_t
     MATRIX_4x2 = 7,
     MATRIX_3x3 = 8,
     MATRIX_2x2 = 9,
-};
-
-enum class vexel_number_format_t
-{
-    UNKNOWN = 0,
-    INTEGER = 1,
-    FLOAT = 2,
-    FIXED = 3,
-    TYPELESS = 4
-};
-
-enum class vexel_space_t
-{
-    LINEAR,
-    SRGB,
-    EXTENDED_SRGB,
-    ADOBE_RGB,
-    HDR_EBGR,
-    HDR10_ST2084,
-    HDR10_HLG,
-    YUV_420_G_B_R_3PLANE,
-    YUV_420_G_BR_2PLANE,
-    YUV_422_G_B_R_3PLANE,
-    YUV_422_G_BR_2PLANE,
-    YUV_422_GBGR,
-    YUV_422_BGRG,
-    YUV_444_G_B_R_3PLANE,
-    YUV_444_G_BR_2PLANE,
-    DISPLAY_P3,
-    DCI_P3,
-    BT709,
-    BT2020,
-    DOLBYVISION,
-    PASS_THROUGH,
-    DISPLAY_NATIVE_AMD
-};
-
-enum class vexel_compressed_format_t
-{
-    // Sin compresión (packed pixel formats)
-    UNDEFINED,
-    PACK_4_4,
-    PACK_4_4_4_4,
-    PACK_5_6_5,
-    PACK_1_5_5_5,
-    PACK_5_5_5_1,
-    PACK_2_10_10_10,
-    PACK_10_11_11,
-    PACK_5_9_9_9,
-    PACK_8_8_8_1,
-    PACK_24,
-    PACK_X8_24,
-    PACK_24_X8,
-    PACK_10X6,
-    PACK_10X6_10X6,
-    PACK_10X6_10X6_10X6,
-    PACK_10X6_10X6_10X6_10X6,
-    PACK_12X4,
-    PACK_12X4_12X4,
-    PACK_12X4_12X4_12X4,
-    PACK_12X4_12X4_12X4_12X4,
 
     // BCn (Block Compression - S3TC/DXT)
     BLOCK_BC1,
@@ -120,164 +61,227 @@ enum class vexel_compressed_format_t
     BLOCK_PVRTC1_2BPP,
     BLOCK_PVRTC1_4BPP,
     BLOCK_PVRTC2_2BPP,
-    BLOCK_PVRTC2_4BPP
+    BLOCK_PVRTC2_4BPP    
+};
+
+enum class vexel_number_format_t : uint8_t
+{
+    UNKNOWN = 0,
+    INTEGER = 1,
+    FLOAT = 2,
+    FIXED = 3,
+    TYPELESS = 4
+};
+
+enum class vexel_space_t : uint16_t
+{
+    LINEAR,
+    RGB,
+    SRGB,
+    EXTENDED_SRGB,
+    ADOBE_RGB,
+    HDR_EBGR,
+    HDR10_ST2084,
+    HDR10_HLG,
+    YUV_420_Y_U_V,
+    YUV_420_Y_UV,
+    YUV_422_Y_U_V,
+    YUV_422_Y_UV,
+    YUV_422_YUYV,
+    YUV_422_UYVY,
+    YUV_444_Y_U_V,
+    YUV_444_Y_UV,
+    DISPLAY_P3,
+    DCI_P3,
+    BT709,
+    BT2020,
+    DOLBYVISION,
+    PASS_THROUGH,
+    DISPLAY_NATIVE_AMD
+};
+
+enum class vexel_interpolation_t : uint8_t
+{
+    LINEAR,
+    NONLINEAR
 };
 
 
-enum class vexel_element_bit_count_t
+enum class vexel_bit_count_t : uint16_t
 {
-    BIT_COUNT_8 = 0,
-    BIT_COUNT_16 = 1,
-    BIT_COUNT_32 = 2,
-    BIT_COUNT_64 = 3,
-    BIT_COUNT_128 = 4,
-    BIT_COUNT_256 = 5,
-    BIT_COUNT_512 = 6,
-    BIT_COUNT_1024 = 7,
+    NONE = 0,
+    UNIFORM_8 = 1,
+    UNIFORM_16 = 2,
+    UNIFORM_32 = 3,
+    UNIFORM_64 = 4,
+    UNIFORM_128 = 5,
+    UNIFORM_256 = 6,
+    UNIFORM_512 = 7,
+    UNIFORM_1024 = 8,
+
+    PACK_4_4,
+    PACK_4_4_4_4,
+    PACK_5_6_5,
+    PACK_1_5_5_5,
+    PACK_5_5_5_1,
+    PACK_2_10_10_10,
+    PACK_10_11_11,
+    PACK_5_9_9_9,
+    PACK_8_8_8_1,
+    PACK_24,
+    PACK_X8_24,
+    PACK_24_X8,
+    PACK_10X6,
+    PACK_10X6_10X6,
+    PACK_10X6_10X6_10X6,
+    PACK_10X6_10X6_10X6_10X6,
+    PACK_12X4,
+    PACK_12X4_12X4,
+    PACK_12X4_12X4_12X4,
+    PACK_12X4_12X4_12X4_12X4,
 };
 
-enum class vexel_order_t
+enum class vexel_special_t : uint16_t
 {
+    NONE
+};
+
+enum class vexel_order_t : uint8_t {
     DEFAULT = 0,
-    RGBA = 0,
-    XYZW = 0,
-    BGRA = 1,
-    ZYXW = 1,
-    ARGB = 2,
-    WXYZ = 2,
-    ABGR = 3,
-    WZYX = 3
+    RGBA = 0,  XYZW = 0,
+    BGRA = 1,  ZYXW = 1,
+    ARGB = 2,  WXYZ = 2,
+    ABGR = 3,  WZYX = 3
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Buffer format: what is inside the buffer, packed into a 32-bit code.
-// ----------------------------------------------------------------------------------------------------------------------------
-// - **Bit 31**: `is_compressed`
-//   - **1** → Formato **comprimido**:
-//       - **Bits 30–0** (31 bits) : `vexel_compressed_format_t`
-//   - **0** → Formato **no comprimido**:
-//       - **Bits 30–22** (9 bits) : `vexel_layout_t`
-//           → distribución de componentes por elemento (SINGLE, VECTOR_2, VECTOR_3, VECTOR_4, matrices, empaquetados, etc.)
-//       - **Bits 21–13** (9 bits) : `vexel_space_t`
-//           → espacio de color o numérico (LINEAR, SRGB, ADOBE_RGB, YUV variantes, DEPTH, etc.)
-//       - **Bits 12–9**  (4 bits) : `vexel_order_t`
-//           → orden de canales / mapeo (R, RG, RGB, RGBA, BGRA, YUV, etc.)
-//       - **Bit 8**      (1 bit)  : `is_linear`
-//           → 1 si el espacio es lineal, 0 si es no lineal (p.ej., sRGB, gamma corregida).
-//       - **Bit 7**      (1 bit)  : `is_normalized`
-//           → 1 si la conversión a float normaliza (UNORM/SNORM).
-//       - **Bit 6**      (1 bit)  : `is_signed`
-//           → 1 si el tipo base es con signo (SNORM/SINT/SFLOAT).
-//       - **Bits 5–3**   (3 bits) : `vexel_number_format_t`
-//           → clase numérica (INTEGER, FLOAT, FIXED, etc.).
-//       - **Bits 2–0**   (3 bits) : `vexel_element_bit_count_t`
-//           → tamaño base por componente (codificado por enum; p.ej., 8/16/32 bits).
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct vexel_format_t
+// =======================
+// Info (typos y bitfields)
+// =======================
+struct vexel_info_t
 {
-    uint32_t code;
+    union {
+        uint32_t code;
+        struct {
+            vexel_special_t       special        : 10; // <-- “spacial” -> “special”
+            vexel_space_t         space          : 10;
+            vexel_order_t         order          : 5;
+            vexel_interpolation_t interpolation  : 4;
+            unsigned              _pad           : 3;  // opcional para redondear a 32 si tu ABI lo requiere
+        };
+    };
+    constexpr vexel_info_t() : code(0) {}
+    constexpr vexel_info_t(uint32_t c) : code(c) {}
+};
 
-private:
-    // Bit 31: is_compressed
-    static constexpr uint32_t IS_COMPRESSED_SHIFT = 31;
-    static constexpr uint32_t IS_COMPRESSED_MASK  = 1u << IS_COMPRESSED_SHIFT;
+// =======================
+// Structure (macro fix + ctor fix)
+// =======================
+struct vexel_structure_t
+{
+    union {
+        uint32_t code;
+        struct {
+            vexel_layout_t        layout         : 10;
+            unsigned              is_signed      : 1;  // 1 bit basta
+            unsigned              is_normalized  : 1;  // 1 bit basta
+            vexel_number_format_t number_format  : 4;
+            vexel_bit_count_t     bit_count      : 10;
+            unsigned              _pad           : 6;
+        };
+    };
 
-    // Compressed (bits 0–30): vexel_compressed_format_t (31 bits)
-    static constexpr uint32_t COMPRESSED_FORMAT_SHIFT = 0;
-    static constexpr uint32_t COMPRESSED_FORMAT_MASK  = 0x7FFFFFFFu << COMPRESSED_FORMAT_SHIFT;
+    constexpr vexel_structure_t() : code(0) {}
+    constexpr vexel_structure_t(uint32_t c) : code(c) {}
 
-    // Uncompressed layout (bits 0–30):
-    // [30:22] layout(9) | [21:13] space(9) | [12:9] order(4) | [8] is_linear(1) | [7] is_norm(1) | [6] is_sign(1) | [5:3] numFmt(3) | [2:0] bitCount(3)
-    static constexpr uint32_t VEXEL_LAYOUT_SHIFT = 22;
-    static constexpr uint32_t VEXEL_LAYOUT_MASK  = 0x1FFu << VEXEL_LAYOUT_SHIFT;  // 9 bits
+    constexpr vexel_structure_t(vexel_layout_t l, bool s, bool n, vexel_number_format_t t, vexel_bit_count_t bc)
+        : layout(l), is_signed(s?1:0), is_normalized(n?1:0), number_format(t), bit_count(bc) {}
 
-    static constexpr uint32_t VEXEL_SPACE_SHIFT  = 13;
-    static constexpr uint32_t VEXEL_SPACE_MASK   = 0x1FFu << VEXEL_SPACE_SHIFT;   // 9 bits (ANTES 10)
-
-    static constexpr uint32_t VEXEL_ORDER_SHIFT  = 9;
-    static constexpr uint32_t VEXEL_ORDER_MASK   = 0xFu << VEXEL_ORDER_SHIFT;     // 4 bits
-
-    static constexpr uint32_t IS_LINEAR_SHIFT     = 8;   // NUEVO
-    static constexpr uint32_t IS_LINEAR_MASK      = 1u << IS_LINEAR_SHIFT;
-
-    static constexpr uint32_t IS_NORMALIZED_SHIFT = 7;
-    static constexpr uint32_t IS_NORMALIZED_MASK  = 1u << IS_NORMALIZED_SHIFT;
-
-    static constexpr uint32_t IS_SIGNED_SHIFT     = 6;
-    static constexpr uint32_t IS_SIGNED_MASK      = 1u << IS_SIGNED_SHIFT;
-
-    static constexpr uint32_t NUMBER_FORMAT_SHIFT = 3;
-    static constexpr uint32_t NUMBER_FORMAT_MASK  = 0x7u << NUMBER_FORMAT_SHIFT;  // 3 bits
-
-    static constexpr uint32_t ELEMENT_BIT_COUNT_SHIFT = 0;
-    static constexpr uint32_t ELEMENT_BIT_COUNT_MASK  = 0x7u << ELEMENT_BIT_COUNT_SHIFT; // 3 bits
-
-    // Helpers
-    static constexpr auto get_flag(uint32_t c, uint32_t mask) -> bool { return (c & mask) != 0; }
-    static constexpr auto set_flag(uint32_t c, uint32_t mask, bool v) -> uint32_t { return (c & ~mask) | (uint32_t(v) ? mask : 0u); }
-    static constexpr auto get_bits(uint32_t c, uint32_t mask, uint32_t shift) -> uint32_t { return (c & mask) >> shift; }
-    static constexpr auto set_bits(uint32_t c, uint32_t mask, uint32_t shift, uint32_t v) -> uint32_t { return (c & ~mask) | ((v << shift) & mask); }
-    template<class E> static constexpr auto get_enum(uint32_t c, uint32_t mask, uint32_t shift) -> E { return static_cast<E>(get_bits(c, mask, shift)); }
-    template<class E> static constexpr auto enc(E v) -> uint32_t { return static_cast<uint32_t>(v); }
-
-public:
-    // Constructores
-    constexpr vexel_format_t() : code(0) {}
-    constexpr vexel_format_t(uint32_t initial_code) : code(initial_code) {}
-    constexpr vexel_format_t(vexel_compressed_format_t cf) { code = (1u << IS_COMPRESSED_SHIFT) | (enc(cf) << COMPRESSED_FORMAT_SHIFT); }
-    constexpr vexel_format_t(vexel_layout_t layout, vexel_space_t space, vexel_order_t order,
-                             bool is_signed_, bool is_linear_, bool is_normalized_,
-                             vexel_number_format_t num_format, vexel_element_bit_count_t bit_count)
-    {
-        code =
-            (enc(layout)     << VEXEL_LAYOUT_SHIFT)     |
-            (enc(space)      << VEXEL_SPACE_SHIFT)      |
-            (enc(order)      << VEXEL_ORDER_SHIFT)      |
-            (uint32_t(is_linear_)     << IS_LINEAR_SHIFT)     |
-            (uint32_t(is_normalized_) << IS_NORMALIZED_SHIFT) |
-            (uint32_t(is_signed_)     << IS_SIGNED_SHIFT)     |
-            (enc(num_format) << NUMBER_FORMAT_SHIFT)     |
-            (enc(bit_count)  << ELEMENT_BIT_COUNT_SHIFT);
+    // Helper robusto para mapear bits reales a tu enum UNIFORM_*
+    static constexpr vexel_bit_count_t uniform_from_bits(int bits) {
+        return (bits==8 ) ? vexel_bit_count_t::UNIFORM_8  :
+               (bits==16) ? vexel_bit_count_t::UNIFORM_16 :
+               (bits==32) ? vexel_bit_count_t::UNIFORM_32 :
+               (bits==64) ? vexel_bit_count_t::UNIFORM_64 :
+               (bits==128)? vexel_bit_count_t::UNIFORM_128:
+               (bits==256)? vexel_bit_count_t::UNIFORM_256:
+               (bits==512)? vexel_bit_count_t::UNIFORM_512:
+               (bits==1024)?vexel_bit_count_t::UNIFORM_1024:
+               vexel_bit_count_t::NONE;
     }
 
-    // Accessors
-    constexpr auto is_compressed() const -> bool { return get_flag(code, IS_COMPRESSED_MASK); }
-    constexpr auto is_compressed(bool v) -> vexel_format_t& { code = set_flag(code, IS_COMPRESSED_MASK, v); return *this; }
+    constexpr vexel_structure_t(vexel_layout_t l, bool s, bool n, vexel_number_format_t t, int bits)
+        : layout(l), is_signed(s?1:0), is_normalized(n?1:0), number_format(t), bit_count(uniform_from_bits(bits))
+    {
+        if (bits == 24) { bit_count = vexel_bit_count_t::PACK_24; }
+        assert( (bits==24) || (bit_count != vexel_bit_count_t::NONE) );
+    }
 
-    constexpr auto compressed_format() const -> vexel_compressed_format_t { return get_enum<vexel_compressed_format_t>(code, COMPRESSED_FORMAT_MASK, COMPRESSED_FORMAT_SHIFT); }
-    constexpr auto compressed_format(vexel_compressed_format_t v) -> vexel_format_t& { code = set_bits(code, COMPRESSED_FORMAT_MASK, COMPRESSED_FORMAT_SHIFT, enc(v)); return *this; }
+    // Presets corregidos (nombres únicos y flags correctos)
+    static constexpr vexel_structure_t VECx_F32 (int n) { return vexel_structure_t(static_cast<vexel_layout_t>(n), true,  false, vexel_number_format_t::FLOAT,   vexel_bit_count_t::UNIFORM_32); }
+    static constexpr vexel_structure_t VECx_U8  (int n) { return vexel_structure_t(static_cast<vexel_layout_t>(n), false, false, vexel_number_format_t::INTEGER, vexel_bit_count_t::UNIFORM_8 ); }
+    static constexpr vexel_structure_t VECx_U16 (int n) { return vexel_structure_t(static_cast<vexel_layout_t>(n), false, false, vexel_number_format_t::INTEGER, vexel_bit_count_t::UNIFORM_16); }
+    static constexpr vexel_structure_t VECx_U32 (int n) { return vexel_structure_t(static_cast<vexel_layout_t>(n), false, false, vexel_number_format_t::INTEGER, vexel_bit_count_t::UNIFORM_32); }
 
-    constexpr auto layout() const -> vexel_layout_t { return get_enum<vexel_layout_t>(code, VEXEL_LAYOUT_MASK, VEXEL_LAYOUT_SHIFT); }
-    constexpr auto layout(vexel_layout_t v) -> vexel_format_t& { code = set_bits(code, VEXEL_LAYOUT_MASK, VEXEL_LAYOUT_SHIFT, enc(v)); return *this; }
+    static constexpr vexel_structure_t VEC1_F32() { return VECx_F32(1); }
+    static constexpr vexel_structure_t VEC2_F32() { return VECx_F32(2); }
+    static constexpr vexel_structure_t VEC3_F32() { return VECx_F32(3); }
+    static constexpr vexel_structure_t VEC4_F32() { return VECx_F32(4); }
 
-    constexpr auto space() const -> vexel_space_t { return get_enum<vexel_space_t>(code, VEXEL_SPACE_MASK, VEXEL_SPACE_SHIFT); }
-    constexpr auto space(vexel_space_t v) -> vexel_format_t& { code = set_bits(code, VEXEL_SPACE_MASK, VEXEL_SPACE_SHIFT, enc(v)); return *this; }
+    static constexpr vexel_structure_t VEC1_U8 () { return VECx_U8 (1); } // p.ej. R8
+    static constexpr vexel_structure_t VEC2_U8 () { return VECx_U8 (2); } // p.ej. RG8
+    static constexpr vexel_structure_t VEC3_U8 () { return VECx_U8 (3); } // p.ej. RGB8
+    static constexpr vexel_structure_t VEC4_U8 () { return VECx_U8 (4); } // p.ej. RGBA8
 
-    constexpr auto order() const -> vexel_order_t { return get_enum<vexel_order_t>(code, VEXEL_ORDER_MASK, VEXEL_ORDER_SHIFT); }
-    constexpr auto order(vexel_order_t v) -> vexel_format_t& { code = set_bits(code, VEXEL_ORDER_MASK, VEXEL_ORDER_SHIFT, enc(v)); return *this; }
-
-    constexpr auto is_linear() const -> bool { return get_flag(code, IS_LINEAR_MASK); }
-    constexpr auto is_linear(bool v) -> vexel_format_t& { code = set_flag(code, IS_LINEAR_MASK, v); return *this; }
-
-    constexpr auto is_normalized() const -> bool { return get_flag(code, IS_NORMALIZED_MASK); }
-    constexpr auto is_normalized(bool v) -> vexel_format_t& { code = set_flag(code, IS_NORMALIZED_MASK, v); return *this; }
-
-    constexpr auto is_signed() const -> bool { return get_flag(code, IS_SIGNED_MASK); }
-    constexpr auto is_signed(bool v) -> vexel_format_t& { code = set_flag(code, IS_SIGNED_MASK, v); return *this; }
-
-    constexpr auto number_format() const -> vexel_number_format_t { return get_enum<vexel_number_format_t>(code, NUMBER_FORMAT_MASK, NUMBER_FORMAT_SHIFT); }
-    constexpr auto number_format(vexel_number_format_t v) -> vexel_format_t& { code = set_bits(code, NUMBER_FORMAT_MASK, NUMBER_FORMAT_SHIFT, enc(v)); return *this; }
-
-    constexpr auto element_bit_count() const -> vexel_element_bit_count_t { return get_enum<vexel_element_bit_count_t>(code, ELEMENT_BIT_COUNT_MASK, ELEMENT_BIT_COUNT_SHIFT); }
-    constexpr auto element_bit_count(vexel_element_bit_count_t v) -> vexel_format_t& { code = set_bits(code, ELEMENT_BIT_COUNT_MASK, ELEMENT_BIT_COUNT_SHIFT, enc(v)); return *this; }
-
-    // Utilidades
-    constexpr auto element_bits() const -> int { return 1 << (int(element_bit_count()) + 3); }
-    constexpr auto element_bytes() const -> int { return element_bits() / 8; }
+    static constexpr vexel_structure_t VEC1_U16() { return VECx_U16(1); } // p.ej. índices 16
+    static constexpr vexel_structure_t VEC1_U32() { return VECx_U32(1); } // p.ej. índices 32
 };
 
+// =======================
+// Formato combinado 64-bit
+// =======================
+struct vexel_format_t
+{
+    union {
+        uint64_t code;
+        struct {
+            // Semantic information
+            union {
+                uint32_t code_info;
+                struct {
+                    vexel_special_t       special        : 10;
+                    vexel_space_t         space          : 10;
+                    vexel_order_t         order          : 5;
+                    vexel_interpolation_t interpolation  : 4;
+                    unsigned              _pad_info      : 3;
+                };
+            };
+            // Structure of the content
+            union {
+                uint32_t code_structure;
+                struct {
+                    vexel_layout_t        layout         : 10;
+                    unsigned              is_signed      : 1;
+                    unsigned              is_normalized  : 1;
+                    vexel_number_format_t number_format  : 4;
+                    vexel_bit_count_t     bit_count      : 10;
+                    unsigned              _pad_struct    : 6;
+                };
+            };
+        };
+    };
 
+    constexpr vexel_format_t() : code(0) {}
+    constexpr vexel_format_t(vexel_info_t info, vexel_structure_t s)
+      : code(0) { code_info = info.code; code_structure = s.code; }
+
+    constexpr auto info() const -> vexel_info_t { return vexel_info_t(code_info); }
+    constexpr auto structure() const -> vexel_structure_t { return vexel_structure_t(code_structure); }
+};
+
+// Sane checks (no portabilidad de bitfields garantizada, pero al menos tamaño):
+static_assert(sizeof(vexel_info_t)      == 4, "vexel_info_t must be 32-bit");
+static_assert(sizeof(vexel_structure_t) == 4, "vexel_structure_t must be 32-bit");
+static_assert(sizeof(vexel_format_t)    == 8, "vexel_format_t must be 64-bit");
 
 
 
@@ -319,8 +323,6 @@ enum class buffer_usage_t
     TRANSFER_DST = 1 << 2,
     TRANSFORM_FEEDBACK_BUFFER = 1 << 3,
     TRANSFORM_FEEDBACK_COUNTER_BUFFER = 1 << 4,
-
-    SAMPLED = 1 << 5,
 
     UNIFORM_BUFFER = 1 << 8,
     STORAGE_BUFFER = 1 << 9,
