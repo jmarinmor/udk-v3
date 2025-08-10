@@ -27,6 +27,16 @@ enum class vexel_layout_t : uint16_t
     MATRIX_3x3 = 8,
     MATRIX_2x2 = 9,
 
+    // YUV blocks
+    BLOCK_YUV_420_Y_U_V,
+    BLOCK_YUV_420_Y_UV,
+    BLOCK_YUV_422_Y_U_V,
+    BLOCK_YUV_422_Y_UV,
+    BLOCK_YUV_422_YUYV,
+    BLOCK_YUV_422_UYVY,
+    BLOCK_YUV_444_Y_U_V,
+    BLOCK_YUV_444_Y_UV,
+
     // BCn (Block Compression - S3TC/DXT)
     BLOCK_BC1,
     BLOCK_BC2,
@@ -75,22 +85,17 @@ enum class vexel_number_format_t : uint8_t
 
 enum class vexel_space_t : uint16_t
 {
-    LINEAR,
+    EUCLIDEAN,
     RGB,
     SRGB,
     EXTENDED_SRGB,
     ADOBE_RGB,
+    YUV,
+    HSL,
+    CMYK,
     HDR_EBGR,
     HDR10_ST2084,
     HDR10_HLG,
-    YUV_420_Y_U_V,
-    YUV_420_Y_UV,
-    YUV_422_Y_U_V,
-    YUV_422_Y_UV,
-    YUV_422_YUYV,
-    YUV_422_UYVY,
-    YUV_444_Y_U_V,
-    YUV_444_Y_UV,
     DISPLAY_P3,
     DCI_P3,
     BT709,
