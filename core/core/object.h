@@ -39,12 +39,12 @@ struct string_t
 	auto c_str() const -> const char*;
 };
 
-struct object_t
-{
-	virtual inline ~object_t() {}
-	virtual void retain() const = 0;
-	virtual void release() const = 0;
-	virtual auto ref_counter() const -> int = 0;
+struct object_t {
+  virtual void retain() const = 0;
+  virtual void release() const = 0;
+  virtual int  ref_count() const = 0;
+protected:
+  virtual ~object_t() = default;
 };
 
 struct handled_object_t : public object_t
@@ -60,750 +60,226 @@ struct handled_object_t : public object_t
 
 
 
-namespace rav
-{
-	struct ptr_lock_owner_t
-	{
-		static	volatile int	mMutex;
-	};
+// Tag para adoptar un puntero que ya tiene una ref (p.ej., tras `new`)
+struct adopt_t { explicit adopt_t() = default; };
+inline constexpr adopt_t adopt{};
 
+//--------------------------------------------------------------
+// ref<T, Atomic=false>: versión no atómica (rápida)
+//--------------------------------------------------------------
+template <typename T, bool Atomic = false>
+class ref {
+  static_assert(std::is_base_of<object_t, T>::value, "T debe derivar de object_t");
+public:
+  using element_type = T;
 
-	template<typename T>
-	inline	void release_atomic(volatile T*& AnObject)
-	{
-		spinlock_lock(&ptr_lock_owner_t::mMutex);
-		T* p = (T*)AnObject;
-		AnObject = nullptr;
-		spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		if (p)
-			p->release();
-	}
-	
-	template<typename T>
-	inline	void release_atomic(T*& AnObject)
-	{
-		spinlock_lock(&ptr_lock_owner_t::mMutex);
-		T* p = (T*)AnObject;
-		AnObject = nullptr;
-		spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		if (p)
-			p->release();
-	}
-	
-	template<typename T1, typename T2>
-	inline	void retain_atomic(volatile T1*& ADestination, volatile T2*& ASource)
-	{
-		spinlock_lock(&ptr_lock_owner_t::mMutex);
-		T1* p = (T1*)ADestination;
-		if (ASource)
-			((T1*)(ADestination = ASource))->retain();
-		else
-			ADestination = nullptr;
-		spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		if (p)
-			p->release();
-	}
-	
-	template<typename T1, typename T2>
-	inline	void retain_atomic(T1*& ADestination, volatile T2*& ASource)
-	{
-		spinlock_lock(&ptr_lock_owner_t::mMutex);
-		T1* p = ADestination;
-		if ((ADestination = (T2*)ASource))
-			ADestination->retain();
-		spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		if (p)
-			p->release();
-	}
-	
-	template<typename T1, typename T2>
-	inline	void retain_atomic(volatile T1*& ADestination, T2*& ASource)
-	{
-		spinlock_lock(&ptr_lock_owner_t::mMutex);
-		T1* p = (T1*)ADestination;
-		if (ASource)
-			((T1*)(ADestination = (T1*)ASource))->retain();
-		else
-			ADestination = nullptr;
-		spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		if (p)
-			p->release();
-	}
-	
+  // Constructores
+  ref() noexcept : p_(nullptr) {}
+  ref(std::nullptr_t) noexcept : p_(nullptr) {}
 
-	template<typename T1, typename T2>
-	inline	void retain_atomic(T1*& ADestination, T2*& ASource)
-	{
-		spinlock_lock(&ptr_lock_owner_t::mMutex);
-		T1* p = ADestination;
-		if ((ADestination = ASource))
-			ADestination->retain();
-		spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		if (p)
-			p->release();
-	}
-	
-	template<typename T>
-	inline	void retain_atomic(volatile T*& AnObject)
-	{
-		if (AnObject)
-			AnObject->retain();
-	}
-	
-	template<typename T>
-	inline	void release_non_atomic(volatile T*& AnObject)
-	{
-		T* p = (T*)AnObject;
-		AnObject = nullptr;
-		if (p)
-			p->release();
-	}
-	
-	template<typename T1, typename T2>
-	inline	void retain_non_atomic(volatile T1*& ADestination, volatile T2*& ASource)
-	{
-		T1* p = ADestination;
-		if (ASource)
-			((T1*)(ADestination = ASource))->retain();
-		else
-			ADestination = nullptr;
-		if (p)
-			p->release();
-	}
-	
-	template<typename T>
-	inline	void retain_non_atomic(volatile T*& AnObject)
-	{
-		if (AnObject)
-			AnObject->retain();
-	}
-	
-	template <bool Atomic1, bool Atomic2>
-	constexpr static	bool	should_use_atomic_ptr_operation()
-	{
-		return Atomic1 || Atomic2;
-	}
-	
-	template <typename T, bool Atomic>
-	struct ptr_storage
-	{
-	};
-	
-	template <typename T>
-	struct ptr_storage<T, true>
-	{
-		volatile T*	m;
-		inline	void	retain() const
-		{
-			if (m)
-				const_cast<T*>((const T*)m)->retain();
-		}
-		inline	void	release() const
-		{
-			if (m)
-				const_cast<T*>((const T*)m)->release();
-		}
-		inline	void	set(const T* p)
-		{
-			m = const_cast<T*>((const T*)p);
-		}
-		template <typename T2>
-		inline	void	set(const T2* p)
-		{
-			m = const_cast<T*>((const T*)p);
-		}
-		inline	T*	get()
-		{
-			return (T*)m;
-		}
-		inline	const T*	get() const
-		{
-			return (const T*)m;
-		}
-		template<typename T2>
-		inline	void init_atomic(volatile T2*& APointer)
-		{
-			spinlock_lock(&ptr_lock_owner_t::mMutex);
-			if ((m = static_cast<volatile T*>(APointer)))
-				get()->retain();
-			spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		}
-		template<typename T2>
-		inline	void init_atomic(T2*& APointer)
-		{
-			spinlock_lock(&ptr_lock_owner_t::mMutex);
-			if ((m = APointer))
-				get()->retain();
-			spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		}
-		template<typename T2>
-		inline	void init_non_atomic(volatile T2*& APointer)
-		{
-			if ((m = static_cast<volatile T*>(APointer)))
-				get()->retain();
-		}
-		template<typename T2>
-		inline	void init_non_atomic(T2*& APointer)
-		{
-			if ((m = APointer))
-				get()->retain();
-		}
-		
-	};
-	
-	template <typename T>
-	struct ptr_storage<T, false>
-	{
-		T*	m;
-		
-		inline	void	retain() const
-		{
-			if (m)
-				const_cast<T*>(m)->retain();
-		}
-		inline	void	release() const
-		{
-			if (m)
-				const_cast<T*>(m)->release();
-		}
-		inline	void	set(const T* p)
-		{
-			m = const_cast<T*>(p);
-		}
-		template <typename T2>
-		inline	void	set(const T2* p)
-		{
-			m = const_cast<T2*>(p);
-		}
-		inline	T*	get()
-		{
-			return m;
-		}
-		inline	const T*	get() const
-		{
-			return m;
-		}
-		template<typename T2>
-		inline	void init_atomic(volatile T2*& APointer)
-		{
-			spinlock_lock(&ptr_lock_owner_t::mMutex);
-			if ((m = (T*)APointer))
-				m->retain();
-			spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		}
-		template<typename T2>
-		inline	void init_atomic(T2*& APointer)
-		{
-			spinlock_lock(&ptr_lock_owner_t::mMutex);
-			if ((m = APointer))
-				m->retain();
-			spinlock_unlock(&ptr_lock_owner_t::mMutex);
-		}
-		template<typename T2>
-		inline	void init_non_atomic(volatile T2*& APointer)
-		{
-			if ((m = (T*)APointer))
-				m->retain();
-		}
-		template<typename T2>
-		inline	void init_non_atomic(T2*& APointer)
-		{
-			if ((m = (T*)APointer))
-				m->retain();
-		}
-	};
+  // Construcción reteniendo (si ptr!=nullptr)
+  explicit ref(T* ptr) noexcept : p_(ptr) {
+    if (p_) p_->retain();
+  }
 
-	template <typename T, bool Atomic = true>
-	struct ptr
-	{
-	//private:
-		ptr_storage<T,Atomic>	mPointer;
-	public:
-		FORCE_INLINE	T*	get()
-		{
-			return mPointer.get();
-		}
-		FORCE_INLINE	const T*	get() const
-		{
-			return mPointer.get();
-		}
-		inline	ptr()
-		{
-			mPointer.m = nullptr;
-		}
-		inline	ptr(const T* p)
-		{
-			mPointer.set(p);
-			mPointer.retain();
-		}
-		template <typename T2>
-		inline	ptr(const T2* p)
-		{
-			mPointer.set(p);
-			mPointer.retain();
-		}
-		ptr(const ptr& p)
-		{
-			if (Atomic)
-				mPointer.init_atomic(const_cast<ptr&>(p).mPointer.m);
-			else
-				mPointer.init_non_atomic(const_cast<ptr&>(p).mPointer.m);
-		}
-		ptr(ptr&& p)
-		{
-			mPointer.m = p.mPointer.m;
-			p.mPointer.m = nullptr;
-		}
-		/*
-		ptr(ptr&& p)
-		{
-			mPointer.set(const_cast<ptr&>(p).mPointer.get());
-			p.mPointer.m = nullptr;
-		}*/
-		template <typename T2, bool Atomic2>
-		ptr(const ptr<T2, Atomic2>& p)
-		{
-			if (Atomic2)
-				mPointer.init_atomic(const_cast<ptr<T2, Atomic2>&>(p).mPointer.m);
-			else
-				mPointer.init_non_atomic(const_cast<ptr<T2, Atomic2>&>(p).mPointer.m);
-		}
-		template <typename T2, bool Atomic2>
-		ptr(ptr<T2, Atomic2>&& p)
-		{
-			mPointer.set(p.get());
-			p.mPointer.set(nullptr);
-		}
-		inline ~ptr()
-		{
-			if (Atomic)
-				release_atomic(mPointer.m);
-			else
-				mPointer.release();
-		}
-		/*
-		inline operator T* ()
-		{
-			return mPointer.get();
-		}
-		inline operator const T* () const
-		{
-			return mPointer.get();
-		}*/
+  // Construcción por adopción (no hace retain)
+  ref(adopt_t, T* ptr) noexcept : p_(ptr) {}
 
-		FORCE_INLINE explicit operator bool() const
-		{
-			return mPointer.m != nullptr;
-		}
-		ptr& operator = (const T* p)
-		{
-			if (p != mPointer.m)
-			{
-				if (Atomic)
-				{
-					T* pp = const_cast<T*>(p);
-					retain_atomic(mPointer.m, pp);
-				}
-				else
-				{
-					mPointer.release();
-					if ((mPointer.m = const_cast<T*>(p)))
-						((T*)mPointer.m)->retain();
-				}
-			}
-			return *this;
-		}
-		template <typename T2>
-		ptr& operator = (const T2* p)
-		{
-			if (Atomic)
-				retain_atomic(mPointer.m, p);
-			else
-			{
-				mPointer.release();
-				if ((mPointer.m = const_cast<T2*>(p)))
-					((T*)mPointer.m)->retain();
-			}
-			return *this;
-		}
-		inline ptr& operator = (const ptr& p)
-		{
-			if (Atomic)
-				retain_atomic(mPointer.m, const_cast<ptr&>(p).mPointer.m);
-			else
-			{
-				mPointer.release();
-				if ((mPointer.m = p.mPointer.m))
-					((T*)mPointer.m)->retain();
-			}
-			return *this;
-		}
-		template <typename T2, bool Atomic2>
-		inline ptr& operator = (const ptr<T2, Atomic2>& p)
-		{
-			if (Atomic || Atomic2)
-				retain_atomic(mPointer.m, const_cast<ptr<T2, Atomic2>&>(p).mPointer.m);
-			else
-			{
-				mPointer.release();
-				if ((mPointer.m = static_cast<T*>((T2*)const_cast<ptr<T2, Atomic2>&>(p).mPointer.m)))
-					((T*)mPointer.m)->retain();
-			}
-			return *this;
-		}
-		inline ptr& operator = (ptr&& p)
-		{
-			if (Atomic)
-			{
-				spinlock_lock(&ptr_lock_owner_t::mMutex);
-				auto pp = get();
-				mPointer.set(p.get());
-				spinlock_unlock(&ptr_lock_owner_t::mMutex);
-				p.mPointer.set(nullptr);
-				if (pp)
-					pp->release();
-			}
-			else
-			{
-				auto pp = get();
-				mPointer.set(p.get());
-				p.mPointer.set(nullptr);
-				if (pp)
-					pp->release();
-			}
-			return *this;
-		}
-		template <typename T2, bool Atomic2>
-		inline ptr& operator = (ptr<T2, Atomic2>&& p)
-		{
-			if (Atomic || Atomic2)
-			{
-				spinlock_lock(&ptr_lock_owner_t::mMutex);
-				auto pp = get();
-				mPointer.set(p.get());
-				spinlock_unlock(&ptr_lock_owner_t::mMutex);
-				p.mPointer.set(nullptr);
-				if (pp)
-					pp->release();
-			}
-			else
-			{
-				auto pp = get();
-				mPointer.set(p.get());
-				p.mPointer.set(nullptr);
-				if (pp)
-					pp->release();
-			}
-			return *this;
-		}
-		template <typename T2>
-		FORCE_INLINE bool operator == (const T2* p) const
-		{
-			return mPointer.m == p;
-		}
-		template <typename T2, bool Atomic2>
-		FORCE_INLINE bool operator == (const ptr<T2, Atomic2>& p) const
-		{
-			return mPointer.m == p.mPointer;
-		}
-		FORCE_INLINE bool operator == (const T* p) const
-		{
-			return mPointer.m == p;
-		}
-		FORCE_INLINE bool operator == (const ptr& p) const
-		{
-			return mPointer.m == p.mPointer.m;
-		}
+  // Copia: comparte y retain
+  ref(const ref& other) noexcept : p_(other.p_) {
+    if (p_) p_->retain();
+  }
 
-		template <typename T2>
-		FORCE_INLINE bool operator != (const T2* p) const
-		{
-			return mPointer.m != p;
-		}
-		template <typename T2, bool Atomic2>
-		FORCE_INLINE bool operator != (const ptr<T2, Atomic2>& p) const
-		{
-			return mPointer.m != p.mPointer;
-		}
-		FORCE_INLINE bool operator != (const T* p) const
-		{
-			return mPointer.m != p;
-		}
-		FORCE_INLINE bool operator != (const ptr& p) const
-		{
-			return mPointer.m != p.mPointer.m;
-		}
+  // Movimiento: transfiere
+  ref(ref&& other) noexcept : p_(other.p_) {
+    other.p_ = nullptr;
+  }
 
-		FORCE_INLINE T*	operator ->()
-		{
-			return get();
-		}
-		FORCE_INLINE const T*	operator ->()const
-		{
-			return get();
-		}
+  // Destructor
+  ~ref() { reset(); }
 
-	};
+  // Asignación por copia
+  ref& operator=(const ref& other) noexcept {
+    if (this == &other) return *this;
+    T* newp = other.p_;
+    if (newp) newp->retain();
+    T* old = p_;
+    p_ = newp;
+    if (old) old->release();
+    return *this;
+  }
 
-	template <typename T, bool Atomic = true>
-	struct const_ptr
-	{
-	//private:
-		ptr_storage<T,Atomic>	mPointer;
-	public:
-		FORCE_INLINE	const T*	get() const
-		{
-			return mPointer.get();
-		}
-		inline	const_ptr()
-		{
-			mPointer.m = nullptr;
-		}
-		inline	const_ptr(const T* p)
-		{
-			mPointer.set(p);
-			mPointer.retain();
-		}
-		template <typename T2>
-		inline	const_ptr(const T2* p)
-		{
-			mPointer.set(p);
-			mPointer.retain();
-		}
-		const_ptr(const const_ptr& p)
-		{
-			if (Atomic)
-				mPointer.init_atomic(const_cast<const_ptr&>(p).mPointer.m);
-			else
-				mPointer.init_non_atomic(const_cast<const_ptr&>(p).mPointer.m);
-		}
-		const_ptr(const_ptr&& p)
-		{
-			mPointer.m = p.mPointer.m;
-			p.mPointer.m = nullptr;
-		}
-		/*
-		ptr(ptr&& p)
-		{
-			mPointer.set(const_cast<ptr&>(p).mPointer.get());
-			p.mPointer.m = nullptr;
-		}*/
-		template <typename T2, bool Atomic2>
-		const_ptr(const const_ptr<T2, Atomic2>& p)
-		{
-			if (Atomic2)
-				mPointer.init_atomic(const_cast<ptr<T2, Atomic2>&>(p).mPointer.m);
-			else
-				mPointer.init_non_atomic(const_cast<ptr<T2, Atomic2>&>(p).mPointer.m);
-		}
-		template <typename T2, bool Atomic2>
-		const_ptr(const_ptr<T2, Atomic2>&& p)
-		{
-			mPointer.set(p.get());
-			p.mPointer.set(nullptr);
-		}
-		inline ~const_ptr()
-		{
-			if (Atomic)
-				release_atomic(mPointer.m);
-			else
-				mPointer.release();
-		}
-		/*
-		inline operator T* ()
-		{
-			return mPointer.get();
-		}
-		inline operator const T* () const
-		{
-			return mPointer.get();
-		}*/
+  // Asignación por movimiento
+  ref& operator=(ref&& other) noexcept {
+    if (this == &other) return *this;
+    T* old = p_;
+    p_ = other.p_;
+    other.p_ = nullptr;
+    if (old) old->release();
+    return *this;
+  }
 
-		FORCE_INLINE explicit operator bool() const
-		{
-			return mPointer.m != nullptr;
-		}
-		const_ptr& operator = (const T* p)
-		{
-			if (p != mPointer.m)
-			{
-				if (Atomic)
-				{
-					T* pp = const_cast<T*>(p);
-					retain_atomic(mPointer.m, pp);
-				}
-				else
-				{
-					mPointer.release();
-					if ((mPointer.m = const_cast<T*>(p)))
-						((T*)mPointer.m)->retain();
-				}
-			}
-			return *this;
-		}
-		template <typename T2>
-		const_ptr& operator = (const T2* p)
-		{
-			if (Atomic)
-				retain_atomic(mPointer.m, p);
-			else
-			{
-				mPointer.release();
-				if ((mPointer.m = const_cast<T2*>(p)))
-					((T*)mPointer.m)->retain();
-			}
-			return *this;
-		}
-		inline const_ptr& operator = (const const_ptr& p)
-		{
-			if (Atomic)
-				retain_atomic(mPointer.m, const_cast<const_ptr&>(p).mPointer.m);
-			else
-			{
-				mPointer.release();
-				if ((mPointer.m = p.mPointer.m))
-					((T*)mPointer.m)->retain();
-			}
-			return *this;
-		}
-		template <typename T2, bool Atomic2>
-		inline const_ptr& operator = (const const_ptr<T2, Atomic2>& p)
-		{
-			if (Atomic || Atomic2)
-				retain_atomic(mPointer.m, const_cast<const_ptr<T2, Atomic2>&>(p).mPointer.m);
-			else
-			{
-				mPointer.release();
-				if ((mPointer.m = static_cast<T*>((T2*)const_cast<ptr<T2, Atomic2>&>(p).mPointer.m)))
-					((T*)mPointer.m)->retain();
-			}
-			return *this;
-		}
-		inline const_ptr& operator = (const_ptr&& p)
-		{
-			if (Atomic)
-			{
-				spinlock_lock(&ptr_lock_owner_t::mMutex);
-				auto pp = get();
-				mPointer.set(p.get());
-				spinlock_unlock(&ptr_lock_owner_t::mMutex);
-				p.mPointer.set(nullptr);
-				if (pp)
-					pp->release();
-			}
-			else
-			{
-				auto pp = get();
-				mPointer.set(p.get());
-				p.mPointer.set(nullptr);
-				if (pp)
-					pp->release();
-			}
-			return *this;
-		}
-		template <typename T2, bool Atomic2>
-		inline const_ptr& operator = (const_ptr<T2, Atomic2>&& p)
-		{
-			if (Atomic || Atomic2)
-			{
-				spinlock_lock(&ptr_lock_owner_t::mMutex);
-				auto pp = get();
-				mPointer.set(p.get());
-				spinlock_unlock(&ptr_lock_owner_t::mMutex);
-				p.mPointer.set(nullptr);
-				if (pp)
-					pp->release();
-			}
-			else
-			{
-				auto pp = get();
-				mPointer.set(p.get());
-				p.mPointer.set(nullptr);
-				if (pp)
-					pp->release();
-			}
-			return *this;
-		}
-		template <typename T2>
-		FORCE_INLINE bool operator == (const T2* p) const
-		{
-			return mPointer.m == p;
-		}
-		template <typename T2, bool Atomic2>
-		FORCE_INLINE bool operator == (const const_ptr<T2, Atomic2>& p) const
-		{
-			return mPointer.m == p.mPointer;
-		}
-		FORCE_INLINE bool operator == (const T* p) const
-		{
-			return mPointer.m == p;
-		}
-		FORCE_INLINE bool operator == (const const_ptr& p) const
-		{
-			return mPointer.m == p.mPointer.m;
-		}
+  // Asignar desde puntero crudo (retiene)
+  ref& reset_to(T* ptr) noexcept {
+    if (ptr) ptr->retain();
+    T* old = p_;
+    p_ = ptr;
+    if (old) old->release();
+    return *this;
+  }
 
-		template <typename T2>
-		FORCE_INLINE bool operator != (const T2* p) const
-		{
-			return mPointer.m != p;
-		}
-		template <typename T2, bool Atomic2>
-		FORCE_INLINE bool operator != (const const_ptr<T2, Atomic2>& p) const
-		{
-			return mPointer.m != p.mPointer;
-		}
-		FORCE_INLINE bool operator != (const T* p) const
-		{
-			return mPointer.m != p;
-		}
-		FORCE_INLINE bool operator != (const const_ptr& p) const
-		{
-			return mPointer.m != p.mPointer.m;
-		}
+  // Adoptar puntero crudo (no retiene)
+  ref& adopt_ptr(T* ptr) noexcept {
+    T* old = p_;
+    p_ = ptr;
+    if (old) old->release();
+    return *this;
+  }
 
-		FORCE_INLINE const T*	operator ->()const
-		{
-			return get();
-		}
+  // Liberar y dejar a nullptr
+  void reset() noexcept {
+    T* old = p_;
+    p_ = nullptr;
+    if (old) old->release();
+  }
 
-	};
+  // Suelta el puntero sin hacer release (¡cuidado!)
+  T* detach() noexcept {
+    T* r = p_;
+    p_ = nullptr;
+    return r;
+  }
 
-	template<typename T>
-	struct unsafe_ptr
-	{
-		private:
-		T* ptr;
+  // Observadores
+  T* get() const noexcept { return p_; }
+  T& operator*() const noexcept { return *p_; }
+  T* operator->() const noexcept { return p_; }
+  explicit operator bool() const noexcept { return p_ != nullptr; }
 
-		public:
-		FORCE_INLINE	unsafe_ptr() {ptr = nullptr;}
-		FORCE_INLINE	unsafe_ptr(const rav::ptr<T>& p) {ptr = const_cast<T*>(p.get());}
-		template <typename T2>
-		FORCE_INLINE	unsafe_ptr(const rav::ptr<T2>& p) {ptr = const_cast<T*>(static_cast<const T*>(p.get()));}
-		FORCE_INLINE	unsafe_ptr(const unsafe_ptr<T>& p) {ptr = const_cast<T*>(p.get());}
-		template <typename T2>
-		FORCE_INLINE	unsafe_ptr(const unsafe_ptr<T2>& p) {ptr = const_cast<T*>(static_cast<const T*>(p.get()));}
-		FORCE_INLINE	unsafe_ptr(const T* p) {ptr = const_cast<T*>(p);}
-		FORCE_INLINE	~unsafe_ptr() {}
+  // Comparaciones
+  friend bool operator==(const ref& a, const ref& b) { return a.p_ == b.p_; }
+  friend bool operator!=(const ref& a, const ref& b) { return a.p_ != b.p_; }
+  friend bool operator==(const ref& a, std::nullptr_t) { return a.p_ == nullptr; }
+  friend bool operator!=(const ref& a, std::nullptr_t) { return a.p_ != nullptr; }
 
-		public:
-		FORCE_INLINE	bool operator == (const T* p) const {return ptr == p;}
-		FORCE_INLINE	bool operator != (const T* p) const {return ptr != p;}
-		FORCE_INLINE	void operator = (const T* p) {if (p == ptr) return; ptr = const_cast<T*>(static_cast<const T*>(p));}
-		template <typename T2>
-		FORCE_INLINE	void operator = (const T2* p) {if (p == ptr) return; ptr = const_cast<T*>(static_cast<const T*>(p));}
-		FORCE_INLINE	void operator = (const rav::ptr<T>& p) {ptr = const_cast<T*>(p.get()); }
-		template <typename T2>
-		FORCE_INLINE	void operator = (const rav::ptr<T2>& p) {ptr = const_cast<T*>(static_cast<const T*>(p.get())); }
-		FORCE_INLINE	void operator = (const unsafe_ptr<T>& p) {ptr = const_cast<T*>(p.get()); }
-		template <typename T2>
-		FORCE_INLINE	void operator = (const unsafe_ptr<T2>& p) {ptr = const_cast<T*>(static_cast<const T*>(p.get())); }
-		//FORCE_INLINE	void operator = (ptr<T>&& p) {ptr = p.ptr; p.ptr = nullptr;}
-		FORCE_INLINE	auto operator -> () -> T* {return ptr;}
-		FORCE_INLINE	auto operator -> () const -> const T* {return ptr;}
+  // Swap
+  void swap(ref& other) noexcept { std::swap(p_, other.p_); }
 
-		public:
-		FORCE_INLINE	auto get() -> T* {return ptr;}
-		FORCE_INLINE	auto get() const -> const T* {return ptr;}
-	};
-}
+private:
+  T* p_;
+};
+
+//--------------------------------------------------------------
+// ref<T, Atomic=true>: versión con puntero atómico
+//
+// Nota: esto hace seguras las *asignaciones/lecturas* concurrentes
+// sobre la MISMA instancia de `ref`. Aún así, la seguridad total
+// requiere que las implementaciones de retain/release en T sean
+// thread-safe (p.ej., usando std::atomic<int>).
+//--------------------------------------------------------------
+template <typename T>
+class ref<T, /*Atomic=*/true> {
+  static_assert(std::is_base_of<object_t, T>::value, "T debe derivar de object_t");
+public:
+  using element_type = T;
+
+  ref() noexcept : p_(nullptr) {}
+  ref(std::nullptr_t) noexcept : p_(nullptr) {}
+
+  explicit ref(T* ptr) noexcept : p_(nullptr) {
+    if (ptr) ptr->retain();
+    p_.store(ptr, std::memory_order_release);
+  }
+
+  ref(adopt_t, T* ptr) noexcept : p_(ptr) {}
+
+  ref(const ref& other) noexcept : p_(nullptr) {
+    T* observed = other.p_.load(std::memory_order_acquire);
+    if (observed) observed->retain();
+    p_.store(observed, std::memory_order_release);
+  }
+
+  ref(ref&& other) noexcept : p_(other.p_.exchange(nullptr, std::memory_order_acq_rel)) {}
+
+  ~ref() { reset(); }
+
+  ref& operator=(const ref& other) noexcept {
+    if (this == &other) return *this;
+    T* newp = other.p_.load(std::memory_order_acquire);
+    if (newp) newp->retain();
+    T* old = p_.exchange(newp, std::memory_order_acq_rel);
+    if (old) old->release();
+    return *this;
+  }
+
+  ref& operator=(ref&& other) noexcept {
+    if (this == &other) return *this;
+    T* newp = other.p_.exchange(nullptr, std::memory_order_acq_rel);
+    T* old  = p_.exchange(newp, std::memory_order_acq_rel);
+    if (old) old->release();
+    return *this;
+  }
+
+  ref& reset_to(T* ptr) noexcept {
+    if (ptr) ptr->retain();
+    T* old = p_.exchange(ptr, std::memory_order_acq_rel);
+    if (old) old->release();
+    return *this;
+  }
+
+  ref& adopt_ptr(T* ptr) noexcept {
+    T* old = p_.exchange(ptr, std::memory_order_acq_rel);
+    if (old) old->release();
+    return *this;
+  }
+
+  void reset() noexcept {
+    T* old = p_.exchange(nullptr, std::memory_order_acq_rel);
+    if (old) old->release();
+  }
+
+  T* detach() noexcept {
+    return p_.exchange(nullptr, std::memory_order_acq_rel);
+  }
+
+  // Observadores
+  T* get() const noexcept { return p_.load(std::memory_order_acquire); }
+  T& operator*() const noexcept { return *get(); }
+  T* operator->() const noexcept { return get(); }
+  explicit operator bool() const noexcept { return get() != nullptr; }
+
+  // Comparaciones
+  friend bool operator==(const ref& a, const ref& b) {
+    return a.get() == b.get();
+  }
+  friend bool operator!=(const ref& a, const ref& b) {
+    return a.get() != b.get();
+  }
+  friend bool operator==(const ref& a, std::nullptr_t) {
+    return a.get() == nullptr;
+  }
+  friend bool operator!=(const ref& a, std::nullptr_t) {
+    return a.get() != nullptr;
+  }
+
+  void swap(ref& other) noexcept {
+    // Intercambio lock-free
+    T* a = p_.load(std::memory_order_acquire);
+    T* b = other.p_.load(std::memory_order_acquire);
+    while (!p_.compare_exchange_weak(a, b, std::memory_order_acq_rel)) {}
+    while (!other.p_.compare_exchange_weak(b, a, std::memory_order_acq_rel)) {}
+  }
+
+private:
+  std::atomic<T*> p_;
+};
+
+//--------------------------------------------------------------
+// Helpers
+//--------------------------------------------------------------
+template <typename T, bool A>
+inline void swap(ref<T, A>& a, ref<T, A>& b) noexcept { a.swap(b); }
+
+// Un alias práctico para punteros de solo lectura
+template <typename T, bool A=false>
+using const_ref = ref<const T, A>;
