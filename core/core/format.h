@@ -413,15 +413,18 @@ struct buffer_access_t
 
 enum class sampler_read_t
 {
-    NEAREST = 0,
-    LINEAR = 1
+    NONE = 0,
+    NEAREST = 1,
+    LINEAR = 2
 };
 
 enum class sampler_wrap_mode_t
 {
     REPEAT = 0,
     MIRROR = 1,
-    CLAMP = 2
+    CLAMP_TO_BORDER, 
+    CLAMP_TO_EDGE, 
+    MIRRORED_REPEAT
 };
 
 struct buffer_sampler_t
