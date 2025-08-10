@@ -143,7 +143,8 @@ enum class vexel_bit_count_t : uint16_t
 
 enum class vexel_special_t : uint16_t
 {
-    NONE
+    NONE,
+    EXTERNAL_ID
 };
 
 enum class vexel_order_t : uint8_t {
@@ -155,68 +156,134 @@ enum class vexel_order_t : uint8_t {
 };
 
 // =======================
-// Info (typos y bitfields)
+// Semanthic info
 // =======================
-struct vexel_info_t
-{
-    union {
-        uint32_t code;
-        struct {
-            vexel_special_t       special        : 10; // <-- “spacial” -> “special”
-            vexel_space_t         space          : 10;
-            vexel_order_t         order          : 5;
-            vexel_interpolation_t interpolation  : 4;
-            unsigned              _pad           : 3;  // opcional para redondear a 32 si tu ABI lo requiere
-        };
-    };
+struct vexel_info_t {
+    uint32_t code;
+
+    // Mapa de bits (portable):
+    // [31:22] special (10)
+    // [21:12] space   (10)
+    // [11:7]  order   (5)
+    // [6:3]   interpolation (4)
+    // [2:0]   _pad    (3)
+    static constexpr uint32_t SPECIAL_SHIFT = 22, SPECIAL_MASK = 0x3FFu << SPECIAL_SHIFT;
+    static constexpr uint32_t SPACE_SHIFT   = 12, SPACE_MASK   = 0x3FFu << SPACE_SHIFT;
+    static constexpr uint32_t ORDER_SHIFT   =  7, ORDER_MASK   = 0x1Fu  << ORDER_SHIFT;
+    static constexpr uint32_t INTP_SHIFT    =  3, INTP_MASK    = 0xFu   << INTP_SHIFT;
+    // PAD: [2:0] — sin getters/setters
+
+    static constexpr uint32_t get_bits(uint32_t v, uint32_t m, uint32_t s){ return (v & m) >> s; }
+    static constexpr uint32_t set_bits(uint32_t v, uint32_t m, uint32_t s, uint32_t x){ return (v & ~m) | ((x << s) & m); }
+
+    // Ctors
     constexpr vexel_info_t() : code(0) {}
     constexpr vexel_info_t(uint32_t c) : code(c) {}
+    constexpr vexel_info_t(vexel_special_t special, vexel_space_t space, vexel_order_t order, vexel_interpolation_t interp)
+        : code( set_bits( set_bits( set_bits( set_bits(0,
+                SPECIAL_MASK, SPECIAL_SHIFT, static_cast<uint32_t>(special)),
+                SPACE_MASK,   SPACE_SHIFT,   static_cast<uint32_t>(space)),
+                ORDER_MASK,   ORDER_SHIFT,   static_cast<uint32_t>(order)),
+                INTP_MASK,    INTP_SHIFT,    static_cast<uint32_t>(interp)) ) {}
+
+    // Accessors
+    constexpr auto special() const -> vexel_special_t { return static_cast<vexel_special_t>(get_bits(code, SPECIAL_MASK, SPECIAL_SHIFT)); }
+    constexpr auto special(vexel_special_t v) -> vexel_info_t& { code = set_bits(code, SPECIAL_MASK, SPECIAL_SHIFT, static_cast<uint32_t>(v)); return *this; }
+
+    constexpr auto space() const -> vexel_space_t { return static_cast<vexel_space_t>(get_bits(code, SPACE_MASK, SPACE_SHIFT)); }
+    constexpr auto space(vexel_space_t v) -> vexel_info_t& { code = set_bits(code, SPACE_MASK, SPACE_SHIFT, static_cast<uint32_t>(v)); return *this; }
+
+    constexpr auto order() const -> vexel_order_t { return static_cast<vexel_order_t>(get_bits(code, ORDER_MASK, ORDER_SHIFT)); }
+    constexpr auto order(vexel_order_t v) -> vexel_info_t& { code = set_bits(code, ORDER_MASK, ORDER_SHIFT, static_cast<uint32_t>(v)); return *this; }
+
+    constexpr auto interpolation() const -> vexel_interpolation_t { return static_cast<vexel_interpolation_t>(get_bits(code, INTP_MASK, INTP_SHIFT)); }
+    constexpr auto interpolation(vexel_interpolation_t v) -> vexel_info_t& { code = set_bits(code, INTP_MASK, INTP_SHIFT, static_cast<uint32_t>(v)); return *this; }
 };
 
 // =======================
-// Structure (macro fix + ctor fix)
+// Structure info
 // =======================
-struct vexel_structure_t
-{
-    union {
-        uint32_t code;
-        struct {
-            vexel_layout_t        layout         : 10;
-            unsigned              is_signed      : 1;  // 1 bit basta
-            unsigned              is_normalized  : 1;  // 1 bit basta
-            vexel_number_format_t number_format  : 4;
-            vexel_bit_count_t     bit_count      : 10;
-            unsigned              _pad           : 6;
-        };
-    };
+struct vexel_structure_t {
+    uint32_t code;
 
+    // Mapa de bits:
+    // [31:22] layout (10)
+    // [21]    is_signed (1)
+    // [20]    is_normalized (1)
+    // [19:16] number_format (4)
+    // [15:6]  bit_count (10)
+    // [5:0]   _pad (6)
+    static constexpr uint32_t LAYOUT_SHIFT = 22, LAYOUT_MASK = 0x3FFu << LAYOUT_SHIFT;
+    static constexpr uint32_t SIGN_SHIFT   = 21, SIGN_MASK   = 1u     << SIGN_SHIFT;
+    static constexpr uint32_t NORM_SHIFT   = 20, NORM_MASK   = 1u     << NORM_SHIFT;
+    static constexpr uint32_t NFMT_SHIFT   = 16, NFMT_MASK   = 0xFu   << NFMT_SHIFT;
+    static constexpr uint32_t BCNT_SHIFT   =  6, BCNT_MASK   = 0x3FFu << BCNT_SHIFT;
+    // PAD: [5:0]
+
+    static constexpr uint32_t get_bits(uint32_t v, uint32_t m, uint32_t s){ return (v & m) >> s; }
+    static constexpr uint32_t set_bits(uint32_t v, uint32_t m, uint32_t s, uint32_t x){ return (v & ~m) | ((x << s) & m); }
+
+    // Ctors
     constexpr vexel_structure_t() : code(0) {}
     constexpr vexel_structure_t(uint32_t c) : code(c) {}
 
-    constexpr vexel_structure_t(vexel_layout_t l, bool s, bool n, vexel_number_format_t t, vexel_bit_count_t bc)
-        : layout(l), is_signed(s?1:0), is_normalized(n?1:0), number_format(t), bit_count(bc) {}
-
-    // Helper robusto para mapear bits reales a tu enum UNIFORM_*
-    static constexpr vexel_bit_count_t uniform_from_bits(int bits) {
-        return (bits==8 ) ? vexel_bit_count_t::UNIFORM_8  :
-               (bits==16) ? vexel_bit_count_t::UNIFORM_16 :
-               (bits==32) ? vexel_bit_count_t::UNIFORM_32 :
-               (bits==64) ? vexel_bit_count_t::UNIFORM_64 :
-               (bits==128)? vexel_bit_count_t::UNIFORM_128:
-               (bits==256)? vexel_bit_count_t::UNIFORM_256:
-               (bits==512)? vexel_bit_count_t::UNIFORM_512:
-               (bits==1024)?vexel_bit_count_t::UNIFORM_1024:
-               vexel_bit_count_t::NONE;
-    }
-
-    constexpr vexel_structure_t(vexel_layout_t l, bool s, bool n, vexel_number_format_t t, int bits)
-        : layout(l), is_signed(s?1:0), is_normalized(n?1:0), number_format(t), bit_count(uniform_from_bits(bits))
+    constexpr vexel_structure_t(vexel_layout_t layout, bool is_signed, bool is_normalized, vexel_number_format_t number_format, vexel_bit_count_t bit_count)
+        : code(0)
     {
-        if (bits == 24) { bit_count = vexel_bit_count_t::PACK_24; }
-        assert( (bits==24) || (bit_count != vexel_bit_count_t::NONE) );
+        code = set_bits(code, LAYOUT_MASK, LAYOUT_SHIFT, static_cast<uint32_t>(layout));
+        code = is_signed      ? (code | SIGN_MASK) : (code & ~SIGN_MASK);
+        code = is_normalized  ? (code | NORM_MASK) : (code & ~NORM_MASK);
+        code = set_bits(code, NFMT_MASK,  NFMT_SHIFT,  static_cast<uint32_t>(number_format));
+        code = set_bits(code, BCNT_MASK,  BCNT_SHIFT,  static_cast<uint32_t>(bit_count));
     }
 
-    // Presets corregidos (nombres únicos y flags correctos)
+    // Helper (lo mantienes)
+    static constexpr vexel_bit_count_t uniform_from_bits(int bits) {
+        return (bits == 8)    ? vexel_bit_count_t::UNIFORM_8   :
+            (bits == 16)   ? vexel_bit_count_t::UNIFORM_16  :
+            (bits == 32)   ? vexel_bit_count_t::UNIFORM_32  :
+            (bits == 64)   ? vexel_bit_count_t::UNIFORM_64  :
+            (bits == 128)  ? vexel_bit_count_t::UNIFORM_128 :
+            (bits == 256)  ? vexel_bit_count_t::UNIFORM_256 :
+            (bits == 512)  ? vexel_bit_count_t::UNIFORM_512 :
+            (bits == 1024) ? vexel_bit_count_t::UNIFORM_1024:
+                                vexel_bit_count_t::NONE;
+    }
+
+    constexpr vexel_structure_t(vexel_layout_t layout, bool is_signed, bool is_normalized, vexel_number_format_t number_format, int bits)
+        : vexel_structure_t(
+            layout,
+            is_signed,
+            is_normalized,
+            number_format,
+            (bits == 24) ? vexel_bit_count_t::PACK_24 : uniform_from_bits(bits)
+        )
+    {
+        static_assert((bits == 24) || (uniform_from_bits(bits) != vexel_bit_count_t::NONE),
+                    "Invalid bits value for vexel_structure_t");
+    }
+    // Accessors
+    constexpr auto layout() const -> vexel_layout_t { return static_cast<vexel_layout_t>(get_bits(code, LAYOUT_MASK, LAYOUT_SHIFT)); }
+    constexpr auto layout(vexel_layout_t v) -> vexel_structure_t& { code = set_bits(code, LAYOUT_MASK, LAYOUT_SHIFT, static_cast<uint32_t>(v)); return *this; }
+
+    constexpr auto is_signed() const -> bool { return (code & SIGN_MASK) != 0; }
+    constexpr auto is_signed(bool v) -> vexel_structure_t& { code = v ? (code | SIGN_MASK) : (code & ~SIGN_MASK); return *this; }
+
+    constexpr auto is_normalized() const -> bool { return (code & NORM_MASK) != 0; }
+    constexpr auto is_normalized(bool v) -> vexel_structure_t& { code = v ? (code | NORM_MASK) : (code & ~NORM_MASK); return *this; }
+
+    constexpr auto number_format() const -> vexel_number_format_t { return static_cast<vexel_number_format_t>(get_bits(code, NFMT_MASK, NFMT_SHIFT)); }
+    constexpr auto number_format(vexel_number_format_t v) -> vexel_structure_t& { code = set_bits(code, NFMT_MASK, NFMT_SHIFT, static_cast<uint32_t>(v)); return *this; }
+
+    constexpr auto bit_count() const -> vexel_bit_count_t { return static_cast<vexel_bit_count_t>(get_bits(code, BCNT_MASK, BCNT_SHIFT)); }
+    constexpr auto bit_count(vexel_bit_count_t v) -> vexel_structure_t& { code = set_bits(code, BCNT_MASK, BCNT_SHIFT, static_cast<uint32_t>(v)); return *this; }
+
+    // Validación mínima de “estructura válida” (tu convención: layout != UNKNOWN)
+    static constexpr bool validate(uint32_t v) {
+        return ((v & LAYOUT_MASK) >> LAYOUT_SHIFT) != static_cast<uint32_t>(vexel_layout_t::UNKNOWN);
+    }
+
+    // Presets (ahora llaman al ctor que usa máscaras; no cambian)
     static constexpr vexel_structure_t VECx_F32 (int n) { return vexel_structure_t(static_cast<vexel_layout_t>(n), true,  false, vexel_number_format_t::FLOAT,   vexel_bit_count_t::UNIFORM_32); }
     static constexpr vexel_structure_t VECx_U8  (int n) { return vexel_structure_t(static_cast<vexel_layout_t>(n), false, false, vexel_number_format_t::INTEGER, vexel_bit_count_t::UNIFORM_8 ); }
     static constexpr vexel_structure_t VECx_U16 (int n) { return vexel_structure_t(static_cast<vexel_layout_t>(n), false, false, vexel_number_format_t::INTEGER, vexel_bit_count_t::UNIFORM_16); }
@@ -227,63 +294,38 @@ struct vexel_structure_t
     static constexpr vexel_structure_t VEC3_F32() { return VECx_F32(3); }
     static constexpr vexel_structure_t VEC4_F32() { return VECx_F32(4); }
 
-    static constexpr vexel_structure_t VEC1_U8 () { return VECx_U8 (1); } // p.ej. R8
-    static constexpr vexel_structure_t VEC2_U8 () { return VECx_U8 (2); } // p.ej. RG8
-    static constexpr vexel_structure_t VEC3_U8 () { return VECx_U8 (3); } // p.ej. RGB8
-    static constexpr vexel_structure_t VEC4_U8 () { return VECx_U8 (4); } // p.ej. RGBA8
+    static constexpr vexel_structure_t VEC1_U8 () { return VECx_U8 (1); }
+    static constexpr vexel_structure_t VEC2_U8 () { return VECx_U8 (2); }
+    static constexpr vexel_structure_t VEC3_U8 () { return VECx_U8 (3); }
+    static constexpr vexel_structure_t VEC4_U8 () { return VECx_U8 (4); }
 
-    static constexpr vexel_structure_t VEC1_U16() { return VECx_U16(1); } // p.ej. índices 16
-    static constexpr vexel_structure_t VEC1_U32() { return VECx_U32(1); } // p.ej. índices 32
+    static constexpr vexel_structure_t VEC1_U16() { return VECx_U16(1); }
+    static constexpr vexel_structure_t VEC1_U32() { return VECx_U32(1); }
 };
 
 // =======================
-// Formato combinado 64-bit
+// Full vexel format
 // =======================
-struct vexel_format_t
+struct vexel_format_t 
 {
-    union {
-        uint64_t code;
-        struct {
-            // Semantic information
-            union {
-                uint32_t code_info;
-                struct {
-                    vexel_special_t       special        : 10;
-                    vexel_space_t         space          : 10;
-                    vexel_order_t         order          : 5;
-                    vexel_interpolation_t interpolation  : 4;
-                    unsigned              _pad_info      : 3;
-                };
-            };
-            // Structure of the content
-            union {
-                uint32_t code_structure;
-                struct {
-                    vexel_layout_t        layout         : 10;
-                    unsigned              is_signed      : 1;
-                    unsigned              is_normalized  : 1;
-                    vexel_number_format_t number_format  : 4;
-                    vexel_bit_count_t     bit_count      : 10;
-                    unsigned              _pad_struct    : 6;
-                };
-            };
-        };
-    };
+    uint32_t code_info;
+    uint32_t code_structure;
 
-    constexpr vexel_format_t() : code(0) {}
-    constexpr vexel_format_t(vexel_info_t info, vexel_structure_t s)
-      : code(0) { code_info = info.code; code_structure = s.code; }
+    // Ctors
+    constexpr vexel_format_t() : code_info(0), code_structure(0) {}
+    constexpr vexel_format_t(vexel_info_t info, vexel_structure_t structure)
+        : code_info(info.code), code_structure(structure.code) {}
 
     constexpr auto info() const -> vexel_info_t { return vexel_info_t(code_info); }
+    constexpr auto info(vexel_info_t value) -> vexel_format_t& { code_info = value.code; return *this;}
     constexpr auto structure() const -> vexel_structure_t { return vexel_structure_t(code_structure); }
+    constexpr auto structure(vexel_structure_t value) -> vexel_format_t& { code_structure = value.code; return *this;}
 };
 
-// Sane checks (no portabilidad de bitfields garantizada, pero al menos tamaño):
+// Sane checks (tamaños)
 static_assert(sizeof(vexel_info_t)      == 4, "vexel_info_t must be 32-bit");
 static_assert(sizeof(vexel_structure_t) == 4, "vexel_structure_t must be 32-bit");
 static_assert(sizeof(vexel_format_t)    == 8, "vexel_format_t must be 64-bit");
-
-
 
 
 

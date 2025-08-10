@@ -1,3 +1,62 @@
+#pragma once
+
+#include <stdint.h>
+
+struct handle_t
+{
+	enum type_t {UNKNOWN, HANDLE_WINDOWS, HANDLE_OPENGL, HANDLE_VULKAN, HANDLE_DIRECTX,
+
+		VULKAN, VULKAN_VkSurfaceKHR, VULKAN_VkInstance, VULKAN_VkPhysicalDevice, VULKAN_VkDevice, 
+		VULKAN_VkRenderPass, VULKAN_VkSwapchainKHR, VULKAN_VkFramebuffer, VULKAN_VkImage, VULKAN_VkBuffer, VULKAN_VkImageView,
+		VULKAN_VkPipeline, VULKAN_VkPipelineLayout, VULKAN_VkShaderModule, VULKAN_VkQueue, VULKAN_VkCommandPool,
+		VULKAN_VkFence, VULKAN_VkSemaphore, VULKAN_VkCommandBuffer, 
+		VULKAN_VkFormat, VULKAN_VkColorSpaceKHR, VULKAN_VkSampler, VULKAN_VkDeviceMemory,
+		VULKAN_VkDescriptorSetLayout,VULKAN_VkDescriptorSet,VULKAN_VkDescriptorPool,
+		
+		GLFW_GLFWwindow};
+
+	inline handle_t() {}
+	inline handle_t(void* h, type_t t) {handle = h; type = t;}
+	inline bool is_null() const {return handle == nullptr;}
+
+	void* handle;
+	type_t type;
+};	
+
+struct string_t
+{
+	private:
+	void* m;
+	
+	public:
+	CTORS(string_t)
+	string_t(const char*);
+
+	public:
+	auto c_str() const -> const char*;
+};
+
+struct object_t
+{
+	virtual inline ~object_t() {}
+	virtual void retain() const = 0;
+	virtual void release() const = 0;
+	virtual auto ref_counter() const -> int = 0;
+};
+
+struct handled_object_t : public object_t
+{
+	virtual inline ~handled_object_t() {}
+	virtual auto handle() const -> handle_t;
+	virtual auto handle(handle_t::type_t) const -> void* const;
+	virtual auto handle_value() const -> void* const;
+	inline	auto handle_int(handle_t::type_t t) const -> uint64_t const {return reinterpret_cast<uint64_t>(handle(t));}
+};
+
+
+
+
+
 #ifndef __CORE_PTR_HEADER__
 #define __CORE_PTR_HEADER__
 
@@ -752,5 +811,3 @@ namespace rav
 }
 
 #endif
-
-
