@@ -281,3 +281,179 @@ SIMD_FORCEINLINE simd_pack_t<D,T> refract(const simd_pack_t<D,T>& I,
 #endif // AVX
 
 } // namespace simd
+
+
+namespace simd
+{
+
+
+// ======================================
+// 8) GEOMETRÍA EXTRA
+//  - cross(3D/4D), normalize_safe, project, orthonormalize3
+// ======================================
+template<typename T>
+SIMD_FORCEINLINE T dot3(const simd_pack_t<3,T>& a, const simd_pack_t<3,T>& b){
+  return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+template<typename T>
+SIMD_FORCEINLINE T length3(const simd_pack_t<3,T>& a){
+  return simd::sqrt<T>( dot3(a,a) ); // usa tu sqrt<T>
+}
+
+// cross 3D
+template<typename T>
+SIMD_FORCEINLINE simd_pack_t<3,T>
+cross(const simd_pack_t<3,T>& a, const simd_pack_t<3,T>& b){
+  return simd_pack_t<3,T>( a.y*b.z - a.z*b.y,
+                           a.z*b.x - a.x*b.z,
+                           a.x*b.y - a.y*b.x );
+}
+// cross 4D => xyz cruzado, w=0
+template<typename T>
+SIMD_FORCEINLINE simd_pack_t<4,T>
+cross(const simd_pack_t<4,T>& a, const simd_pack_t<4,T>& b){
+  simd_pack_t<4,T> r(T{});
+  r.x = a.y*b.z - a.z*b.y;
+  r.y = a.z*b.x - a.x*b.z;
+  r.z = a.x*b.y - a.y*b.x;
+  r.w = T(0);
+  return r;
+}
+
+template<typename T>
+SIMD_FORCEINLINE simd_pack_t<3,T>
+normalize_safe(const simd_pack_t<3,T>& v, T eps = T(1e-6)){
+  T len = length3(v);
+  if (len <= eps) return simd_pack_t<3,T>(T(0));
+  T inv = T(1)/len;
+  return simd_pack_t<3,T>( v.x*inv, v.y*inv, v.z*inv );
+}
+
+template<typename T>
+SIMD_FORCEINLINE simd_pack_t<3,T>
+project(const simd_pack_t<3,T>& a, const simd_pack_t<3,T>& b){
+  T bb = dot3(b,b); if (bb==T(0)) return simd_pack_t<3,T>(T(0));
+  T s = dot3(a,b) / bb;
+  return simd_pack_t<3,T>( b.x*s, b.y*s, b.z*s );
+}
+
+template<typename T>
+SIMD_FORCEINLINE void
+orthonormalize3(simd_pack_t<3,T>& u, simd_pack_t<3,T>& v, simd_pack_t<3,T>& w, T eps=T(1e-6)){
+  u = normalize_safe(u, eps);
+  { T d = dot3(v,u); v.x -= d*u.x; v.y -= d*u.y; v.z -= d*u.z; v = normalize_safe(v, eps); }
+  { T d1= dot3(w,u), d2= dot3(w,v);
+    w.x -= d1*u.x + d2*v.x; w.y -= d1*u.y + d2*v.y; w.z -= d1*u.z + d2*v.z;
+    w = normalize_safe(w, eps);
+  }
+}	
+}
+
+namespace simd
+{
+
+
+// ---------- Geometría fast-path (cross float3 via SSE/NEON) ----------
+#if defined(__SSE__) || defined(__SSE2__) || defined(_M_X64)
+// cross 3D usando shuffles sobre float4 (se ignora w)
+template<> inline simd::simd_pack_t<4,float>
+simd::cross<float>(const simd_pack_t<4,float>& a, const simd_pack_t<4,float>& b){
+  __m128 a_yzx = _mm_shuffle_ps(a.m, a.m, _MM_SHUFFLE(3,0,2,1));
+  __m128 b_yzx = _mm_shuffle_ps(b.m, b.m, _MM_SHUFFLE(3,0,2,1));
+  __m128 c     = _mm_sub_ps(_mm_mul_ps(a.m, b_yzx), _mm_mul_ps(a_yzx, b.m));
+  __m128 r     = _mm_shuffle_ps(c, c, _MM_SHUFFLE(3,0,2,1));
+  r = _mm_blend_ps(r, _mm_set_ss(0.0f), 0x8); // w=0
+  return simd_pack_t<4,float>(r);
+}
+#endif
+
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+template<> inline simd::simd_pack_t<4,float>
+simd::cross<float>(const simd_pack_t<4,float>& a, const simd_pack_t<4,float>& b){
+  float32x4_t a_yzx = vextq_f32(a.m, a.m, 1);
+  float32x4_t b_yzx = vextq_f32(b.m, b.m, 1);
+  float32x4_t c     = vsubq_f32(vmulq_f32(a.m, b_yzx), vmulq_f32(a_yzx, b.m));
+  float32x4_t r     = vextq_f32(c, c, 1);
+  r = vsetq_lane_f32(0.0f, r, 3);
+  return simd_pack_t<4,float>(r);
+}
+#endif
+
+
+// ================== 8) Geometría extra ==================
+template<typename T> SIMD_FORCEINLINE T dot3(const simd_pack_t<3,T>& a, const simd_pack_t<3,T>& b){
+  return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+template<typename T> SIMD_FORCEINLINE T length3(const simd_pack_t<3,T>& a){
+  return simd::sqrt<T>( dot3(a,a) ); // usa tu sqrt<T>
+}
+
+// cross 3D
+template<typename T>
+SIMD_FORCEINLINE simd_pack_t<3,T> cross(const simd_pack_t<3,T>& a, const simd_pack_t<3,T>& b){
+  return simd_pack_t<3,T>( a.y*b.z - a.z*b.y,
+                           a.z*b.x - a.x*b.z,
+                           a.x*b.y - a.y*b.x );
+}
+// cross 4D (w=0)
+template<typename T>
+SIMD_FORCEINLINE simd_pack_t<4,T> cross(const simd_pack_t<4,T>& a, const simd_pack_t<4,T>& b){
+  simd_pack_t<4,T> r(T{});
+  r.x = a.y*b.z - a.z*b.y;
+  r.y = a.z*b.x - a.x*b.z;
+  r.z = a.x*b.y - a.y*b.x;
+  r.w = T(0);
+  return r;
+}
+
+template<typename T>
+SIMD_FORCEINLINE simd_pack_t<3,T> normalize_safe(const simd_pack_t<3,T>& v, T eps=T(1e-6)){
+  T len = length3(v);
+  if (len<=eps) return simd_pack_t<3,T>(T(0));
+  T inv=T(1)/len; return simd_pack_t<3,T>(v.x*inv, v.y*inv, v.z*inv);
+}
+template<typename T>
+SIMD_FORCEINLINE simd_pack_t<3,T> project(const simd_pack_t<3,T>& a, const simd_pack_t<3,T>& b){
+  T bb = dot3(b,b); if (bb==T(0)) return simd_pack_t<3,T>(T(0));
+  T s = dot3(a,b)/bb; return simd_pack_t<3,T>(b.x*s,b.y*s,b.z*s);
+}
+template<typename T>
+SIMD_FORCEINLINE void orthonormalize3(simd_pack_t<3,T>& u, simd_pack_t<3,T>& v, simd_pack_t<3,T>& w, T eps=T(1e-6)){
+  u = normalize_safe(u, eps);
+  { T d = dot3(v,u); v.x-=d*u.x; v.y-=d*u.y; v.z-=d*u.z; v=normalize_safe(v,eps); }
+  { T du=dot3(w,u), dv=dot3(w,v);
+    w.x-=du*u.x+dv*v.x; w.y-=du*u.y+dv*v.y; w.z-=du*u.z+dv*v.z; w=normalize_safe(w,eps);
+  }
+}
+
+
+
+
+
+// ------------- Geometría fast-path (cross float4) -------------
+#if defined(__SSE__) || defined(__SSE2__) || defined(_M_X64)
+template<> inline simd::simd_pack_t<4,float>
+simd::cross<float>(const simd_pack_t<4,float>& a, const simd_pack_t<4,float>& b){
+  __m128 a_yzx = _mm_shuffle_ps(a.m, a.m, _MM_SHUFFLE(3,0,2,1));
+  __m128 b_yzx = _mm_shuffle_ps(b.m, b.m, _MM_SHUFFLE(3,0,2,1));
+  __m128 c = _mm_sub_ps(_mm_mul_ps(a.m, b_yzx), _mm_mul_ps(a_yzx, b.m));
+  __m128 r = _mm_shuffle_ps(c, c, _MM_SHUFFLE(3,0,2,1));
+  r = _mm_blend_ps(r, _mm_set_ss(0.0f), 0x8); // w=0
+  return simd_pack_t<4,float>(r);
+}
+#endif
+
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+template<> inline simd::simd_pack_t<4,float>
+simd::cross<float>(const simd_pack_t<4,float>& a, const simd_pack_t<4,float>& b){
+  float32x4_t a_yzx = vextq_f32(a.m, a.m, 1);
+  float32x4_t b_yzx = vextq_f32(b.m, b.m, 1);
+  float32x4_t c     = vsubq_f32(vmulq_f32(a.m, b_yzx), vmulq_f32(a_yzx, b.m));
+  float32x4_t r     = vextq_f32(c, c, 1);
+  r = vsetq_lane_f32(0.0f, r, 3);
+  return simd_pack_t<4,float>(r);
+}
+#endif
+
+
+}

@@ -289,4 +289,134 @@ namespace simd {
   // Unario negación
   template<int D, typename T> SIMD_FORCEINLINE simd_pack_t<D,T> operator-(const simd_pack_t<D,T>& v) { return mul<D,T>(v, splat<D,T>(T(-1))); }
 
+
+	template <typename T> SIMD_FORCEINLINE T rcp(const T& v); // 1/v
+
+	template <typename T>
+	SIMD_FORCEINLINE T rcp(const T& v) {
+		return static_cast<T>(1.0 / static_cast<double>(v));
+	}
+	template <>
+	SIMD_FORCEINLINE float rcp<float>(const float& v) { return 1.0f / v; }
+	template <>
+	SIMD_FORCEINLINE double rcp<double>(const double& v) { return 1.0 / v; }
+
+
+	// ============================================================
+	//  Helpers por plataforma (sin ifdefs dentro de funciones)
+	// ============================================================
+	// ---- NEON ARMv7: refinamientos NR para rsqrt/rcp y sqrt via rsqrt
+#if (defined(__ARM_NEON) || defined(__ARM_NEON__)) && !defined(__aarch64__)
+	SIMD_FORCEINLINE float32x4_t neon_rcp_nr_f32x4(float32x4_t a) {
+		float32x4_t x = vrecpeq_f32(a);
+		x = vmulq_f32(x, vrecpsq_f32(a, x));
+		x = vmulq_f32(x, vrecpsq_f32(a, x));
+		return x;
+	}
+	SIMD_FORCEINLINE float32x2_t neon_rcp_nr_f32x2(float32x2_t a) {
+		float32x2_t x = vrecpe_f32(a);
+		x = vmul_f32(x, vrecps_f32(a, x));
+		x = vmul_f32(x, vrecps_f32(a, x));
+		return x;
+	}
+#endif
+
+#if defined(__SSE__) || defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP>=1)
+	SIMD_FORCEINLINE __m128 sse_rcp_nr_ps(__m128 a) {
+		__m128 x = _mm_rcp_ps(a);
+		const __m128 two = _mm_set1_ps(2.0f);
+		x = _mm_mul_ps(x, _mm_sub_ps(two, _mm_mul_ps(a, x)));
+		x = _mm_mul_ps(x, _mm_sub_ps(two, _mm_mul_ps(a, x)));
+		return x;
+	}
+#endif
+
+#if defined(__aarch64__)
+	template <> SIMD_FORCEINLINE simd_pack_t<4, float>
+	sqrt(const simd_pack_t<4, float>& v) { return simd_pack_t<4, float>(vsqrtq_f32(v.m)); }
+
+	template <> SIMD_FORCEINLINE simd_pack_t<4, float>
+	rsq(const simd_pack_t<4, float>& v) {
+		float32x4_t x = vrsqrteq_f32(v.m);
+		x = vmulq_f32(x, vrsqrtsq_f32(vmulq_f32(v.m, x), x));
+		x = vmulq_f32(x, vrsqrtsq_f32(vmulq_f32(v.m, x), x));
+		return simd_pack_t<4, float>(x);
+	}
+
+	template <> SIMD_FORCEINLINE simd_pack_t<4, float>
+	rcp(const simd_pack_t<4, float>& v) {
+		float32x4_t x = vrecpeq_f32(v.m);
+		x = vmulq_f32(x, vrecpsq_f32(v.m, x));
+		x = vmulq_f32(x, vrecpsq_f32(v.m, x));
+		return simd_pack_t<4, float>(x);
+	}
+#elif (defined(__ARM_NEON) || defined(__ARM_NEON__)) && !defined(__aarch64__)
+	template <> SIMD_FORCEINLINE simd_pack_t<4, float>
+	sqrt(const simd_pack_t<4, float>& v) { return simd_pack_t<4, float>(neon_sqrt_via_rsqrt_f32x4(v.m)); }
+
+	template <> SIMD_FORCEINLINE simd_pack_t<4, float>
+	rsq(const simd_pack_t<4, float>& v) { return simd_pack_t<4, float>(neon_rsqrt_nr_f32x4(v.m)); }
+
+	template <> SIMD_FORCEINLINE simd_pack_t<4, float>
+	rcp(const simd_pack_t<4, float>& v) { return simd_pack_t<4, float>(neon_rcp_nr_f32x4(v.m)); }
+#elif defined(__SSE__) || defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP>=1)
+	template <> SIMD_FORCEINLINE simd_pack_t<4, float>
+	rcp(const simd_pack_t<4, float>& v) { return simd_pack_t<4, float>(sse_rcp_nr_ps(v.m)); }
+#else
+	template <> SIMD_FORCEINLINE simd_pack_t<4, float>
+	rcp(const simd_pack_t<4, float>& v) { return simd_pack_t<4, float>(1.f / v.x, 1.f / v.y, 1.f / v.z, 1.f / v.w); }
+#endif
+
+
+#if defined(__aarch64__)
+	template <> SIMD_FORCEINLINE simd_pack_t<2, float>
+	rcp(const simd_pack_t<2, float>& v) {
+		float32x2_t x = vrecpe_f32(v.m);
+		x = vmul_f32(x, vrecps_f32(v.m, x));
+		x = vmul_f32(x, vrecps_f32(v.m, x));
+		return simd_pack_t<2, float>(x);
+	}
+#elif (defined(__ARM_NEON) || defined(__ARM_NEON__)) && !defined(__aarch64__)
+	template <> SIMD_FORCEINLINE simd_pack_t<2, float>
+	rcp(const simd_pack_t<2, float>& v) { return simd_pack_t<2, float>(neon_rcp_nr_f32x2(v.m)); }
+#else
+	template <> SIMD_FORCEINLINE simd_pack_t<2, float>
+	rcp(const simd_pack_t<2, float>& v) { return simd_pack_t<2, float>(1.f / v.x, 1.f / v.y); }
+#endif
+
+
+	// ============================================================
+	//  Especializaciones SIMD — DOUBLE2 (simd_pack_t<2,double>)
+	// ============================================================
+#if defined(__aarch64__)
+	template <> SIMD_FORCEINLINE simd_pack_t<2, double>
+	rcp(const simd_pack_t<2, double>& v) {
+		float64x2_t one = vdupq_n_f64(1.0);
+		return simd_pack_t<2, double>(vdivq_f64(one, v.m));
+	}
+#elif defined(__SSE2__) || defined(_M_X64)
+	template <> SIMD_FORCEINLINE simd_pack_t<2, double>
+	rcp(const simd_pack_t<2, double>& v) {
+		__m128d one = _mm_set1_pd(1.0);
+		return simd_pack_t<2, double>(_mm_div_pd(one, v.m));
+	}
+#else
+	template <> SIMD_FORCEINLINE simd_pack_t<2, double>
+	rcp(const simd_pack_t<2, double>& v) { return simd_pack_t<2, double>(1.0 / v.x, 1.0 / v.y); }
+#endif
+
+	// ============================================================
+	//  Especializaciones SIMD — DOUBLE4 (simd_pack_t<4,double>)
+	// ============================================================
+#if defined(__AVX__) || defined(_M_AVX)
+	template <> SIMD_FORCEINLINE simd_pack_t<4, double>
+	rcp(const simd_pack_t<4, double>& v) {
+		__m256d one = _mm256_set1_pd(1.0);
+		return simd_pack_t<4, double>(_mm256_div_pd(one, v.m));
+	}
+#else
+	template <> SIMD_FORCEINLINE simd_pack_t<4, double>
+	rcp(const simd_pack_t<4, double>& v) { return simd_pack_t<4, double>(1.0 / v.x, 1.0 / v.y, 1.0 / v.z, 1.0 / v.w); }
+#endif
+
 } // namespace simd

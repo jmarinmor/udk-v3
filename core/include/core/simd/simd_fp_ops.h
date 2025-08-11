@@ -364,3 +364,183 @@ namespace simd {
 #endif
 
 } // namespace simd
+
+
+namespace simd {
+
+  // -------------------------------------------
+  // bit_cast seguro (sin UB)
+  // -------------------------------------------
+  template<typename To, typename From>
+  SIMD_FORCEINLINE To _bit_cast(const From& src) noexcept {
+    static_assert(sizeof(To)==sizeof(From), "_bit_cast: tamaño incompatible");
+    To dst; std::memcpy(&dst, &src, sizeof(To)); return dst;
+  }
+
+  // ===========================================
+  // frexp / ldexp  (float)
+  // ===========================================
+  SIMD_FORCEINLINE float frexp(const float& a, int& e_out) {
+    uint32_t u = _bit_cast<uint32_t>(a);
+    uint32_t exp = (u >> 23) & 0xFFu;
+    uint32_t man =  u & 0x7FFFFFu;
+    uint32_t sgn =  u & 0x80000000u;
+
+    if (exp == 0) {
+      if (man == 0) { e_out = 0; return 0.0f; } // ±0
+      // subnormal: normaliza
+      int shift = 0;
+      while ((man & 0x800000u) == 0) { man <<= 1; ++shift; }
+      // ahora man tiene el bit implícito en 1. Exponente efectivo era 1-127.
+      int e = 1 - 127 - shift;
+      // fijamos exponente a 126 (bias-1) → mantisa ∈ [0.5,1)
+      uint32_t mant_bits = sgn | ((126u & 0xFFu) << 23) | (man & 0x7FFFFFu);
+      e_out = e + 1; // porque hemos puesto 126 en vez de (exp-1)= -?  → comprobación: x = m * 2^e_out
+      return _bit_cast<float>(mant_bits);
+    } else if (exp == 0xFFu) {
+      // Inf/NaN: devolvemos tal cual; e_out=0
+      e_out = 0;
+      return a;
+    } else {
+      // normal
+      e_out = int(exp) - 126; // porque colocamos 126 → m∈[0.5,1)
+      uint32_t mant_bits = sgn | (126u << 23) | (man);
+      return _bit_cast<float>(mant_bits);
+    }
+  }
+
+  SIMD_FORCEINLINE float ldexp(const float& mant, const int& e) {
+    if (mant == 0.0f) return 0.0f;
+    uint32_t u = _bit_cast<uint32_t>(mant);
+    uint32_t exp = (u >> 23) & 0xFFu;
+    uint32_t man =  u & 0x7FFFFFu;
+    uint32_t sgn =  u & 0x80000000u;
+
+    if (exp == 0) {
+      // subnormal: normaliza a exponente 1 antes de sumar e
+      int shift = 0;
+      while ((man & 0x800000u) == 0) { man <<= 1; ++shift; if (shift>24) break; }
+      if (shift<=24) { man &= 0x7FFFFFu; exp = 1; }
+      // el exponente efectivo de mant era (1-127-shift); pero mant debe venir en [0.5,1)
+      // asumimos que proviene de frexp → exp debería ser 126; si no, igualmente ajustamos.
+    }
+
+    int new_exp = int(exp) + e;
+    if (new_exp <= 0) {
+      // subnormal / underflow
+      if (new_exp <= -24) return _bit_cast<float>(sgn); // bajo cero (±0)
+      // desplaza la mantisa a la derecha
+      man |= 0x800000u;
+      man >>= (1 - new_exp);
+      return _bit_cast<float>( sgn | (man & 0x7FFFFFu) );
+    } else if (new_exp >= 255) {
+      // overflow → ±inf
+      return _bit_cast<float>( sgn | (0xFFu<<23) );
+    } else {
+      return _bit_cast<float>( sgn | (uint32_t(new_exp)<<23) | (man) );
+    }
+  }
+
+  // ===========================================
+  // frexp / ldexp  (double)
+  // ===========================================
+  SIMD_FORCEINLINE double frexp(const double& a, int& e_out) {
+    uint64_t u = _bit_cast<uint64_t>(a);
+    uint64_t exp = (u >> 52) & 0x7FFull;
+    uint64_t man =  u & 0xFFFFFFFFFFFFFull;
+    uint64_t sgn =  u & 0x8000000000000000ull;
+
+    if (exp == 0) {
+      if (man == 0) { e_out = 0; return 0.0; }
+      int shift = 0;
+      while ((man & 0x0010000000000000ull) == 0ull) { man <<= 1; ++shift; }
+      int e = 1 - 1023 - shift;
+      uint64_t mant_bits = sgn | (uint64_t(1022) << 52) | (man & 0xFFFFFFFFFFFFFull);
+      e_out = e + 1;
+      return _bit_cast<double>(mant_bits);
+    } else if (exp == 0x7FFull) {
+      e_out = 0;
+      return a; // Inf/NaN
+    } else {
+      e_out = int(exp) - 1022;
+      uint64_t mant_bits = sgn | (uint64_t(1022) << 52) | (man);
+      return _bit_cast<double>(mant_bits);
+    }
+  }
+
+  SIMD_FORCEINLINE double ldexp(const double& mant, const int& e) {
+    if (mant == 0.0) return 0.0;
+    uint64_t u = _bit_cast<uint64_t>(mant);
+    uint64_t exp = (u >> 52) & 0x7FFull;
+    uint64_t man =  u & 0xFFFFFFFFFFFFFull;
+    uint64_t sgn =  u & 0x8000000000000000ull;
+
+    if (exp == 0) {
+      int shift = 0;
+      while ((man & 0x0010000000000000ull) == 0ull) { man <<= 1; ++shift; if (shift>53) break; }
+      if (shift<=53) { man &= 0xFFFFFFFFFFFFFull; exp = 1; }
+    }
+
+    int new_exp = int(exp) + e;
+    if (new_exp <= 0) {
+      if (new_exp <= -53) return _bit_cast<double>(sgn);
+      man |= 0x0010000000000000ull;
+      man >>= (1 - new_exp);
+      return _bit_cast<double>( sgn | (man & 0xFFFFFFFFFFFFFull) );
+    } else if (new_exp >= 2047) {
+      return _bit_cast<double>( sgn | (0x7FFull<<52) ); // ±inf
+    } else {
+      return _bit_cast<double>( sgn | (uint64_t(new_exp)<<52) | (man) );
+    }
+  }
+
+  // ===========================================
+  // Versiones SIMD (por-lane)
+  // ===========================================
+  template<int D> SIMD_FORCEINLINE
+  simd_pack_t<D,float> frexp(const simd_pack_t<D,float>& a, simd_pack_t<D,int>& exp_out) {
+    simd_pack_t<D,float> m(0.f);
+    for (int i=0;i<D;++i) {
+      int ei=0; float mi = frexp((&a.x)[i], ei);
+      (&m.x)[i] = mi; (&exp_out.x)[i] = ei;
+    }
+    return m;
+  }
+  template<int D> SIMD_FORCEINLINE
+  simd_pack_t<D,double> frexp(const simd_pack_t<D,double>& a, simd_pack_t<D,int>& exp_out) {
+    simd_pack_t<D,double> m(0.0);
+    for (int i=0;i<D;++i) {
+      int ei=0; double mi = frexp((&a.x)[i], ei);
+      (&m.x)[i] = mi; (&exp_out.x)[i] = ei;
+    }
+    return m;
+  }
+
+  template<int D> SIMD_FORCEINLINE
+  simd_pack_t<D,float> ldexp(const simd_pack_t<D,float>& mant, const simd_pack_t<D,int>& e) {
+    simd_pack_t<D,float> r(0.f);
+    for (int i=0;i<D;++i) (&r.x)[i] = ldexp((&mant.x)[i], (&e.x)[i]);
+    return r;
+  }
+  template<int D> SIMD_FORCEINLINE
+  simd_pack_t<D,double> ldexp(const simd_pack_t<D,double>& mant, const simd_pack_t<D,int>& e) {
+    simd_pack_t<D,double> r(0.0);
+    for (int i=0;i<D;++i) (&r.x)[i] = ldexp((&mant.x)[i], (&e.x)[i]);
+    return r;
+  }
+
+  // Overloads con exponente escalar
+  template<int D> SIMD_FORCEINLINE
+  simd_pack_t<D,float> ldexp(const simd_pack_t<D,float>& mant, int e) {
+    simd_pack_t<D,float> r(0.f);
+    for (int i=0;i<D;++i) (&r.x)[i] = ldexp((&mant.x)[i], e);
+    return r;
+  }
+  template<int D> SIMD_FORCEINLINE
+  simd_pack_t<D,double> ldexp(const simd_pack_t<D,double>& mant, int e) {
+    simd_pack_t<D,double> r(0.0);
+    for (int i=0;i<D;++i) (&r.x)[i] = ldexp((&mant.x)[i], e);
+    return r;
+  }
+
+} // namespace simd
