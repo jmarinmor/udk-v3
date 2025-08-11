@@ -55,25 +55,20 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Fast calls
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#if defined(_MSC_VER)
-#	define FORCE_FASTCALL __fastcall
-#elif defined(__GCC__)
-#	define FORCE_FASTCALL  __attribute__((fastcall))
-#endif
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Calling convention
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef DLL_CALLING_CONVENTION
+#ifndef STDCALL
 #	if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__SCITECH_SNAP__)
-#		define DLL_CALLING_CONVENTION __stdcall
+#		define STDCALL __stdcall
 #	else
-#		define DLL_CALLING_CONVENTION
+#		define STDCALL
 #	endif
+#endif
+#if defined(_MSC_VER)
+#	define FASTCALL __fastcall
+//#elif defined(__GCC__)
+#else
+#	define FASTCALL  __attribute__((fastcall))
 #endif
 
 
@@ -108,6 +103,7 @@
 #define SDLL_FNC(_Return)				static	API_FUNCTION(_Return)
 #define INL_FNC(_Return)				FORCE_INLINE _Return
 #define OFL_FNC(_Return)				FORCE_OFFLINE _Return
+#define FAST_FNC(_Return)				_Return FASTCALL
 
 #define PRE_CTORS(_T) \
 		_T(); \
