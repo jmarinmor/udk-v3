@@ -1,7 +1,24 @@
 #pragma once
 
+
+// ===============================
+//  Detección de ISA + includes
+// ===============================
+
+
+// ===============================================
+// x86 / x64
+// ===============================================
+
+#include <simd/simd_include.h>
+
+
+
 #include <cmath>
+#include <cassert>
+#include <cstdint>
 #include <type_traits>
+
 
 // ===== Inline helpers =====
 #ifndef SIMD_INLINE
@@ -16,35 +33,6 @@
 #endif
 #endif
 
-// ===============================
-//  Detección de ISA + includes
-// ===============================
-
-// x86/x64
-#if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-#include <emmintrin.h>   // SSE2
-#endif
-
-#if defined(__SSE4_1__) || defined(_M_X64)
-#include <smmintrin.h>   // SSE4.1 (opcional si lo usas)
-#endif
-
-#if defined(__AVX__) || defined(_M_AVX)
-#include <immintrin.h>   // AVX
-#endif
-
-#if defined(__AVX2__) || defined(_M_AVX2)
-#include <immintrin.h>   // AVX2
-#endif
-
-// ARM/ARM64
-#if defined(__ARM_NEON) || defined(__ARM_NEON__)
-#include <arm_neon.h>    // NEON (float/int)
-#endif
-
-#include <cassert>
-#include <cstdint>
-#include <type_traits>
 
 // ===============================
 //  Infra interna
@@ -107,12 +95,10 @@ struct simd_pack_t<2, T> {
 	};
 	static constexpr int component_count() { return 2; }
 
-	SIMD_FORCEINLINE explicit	simd_pack_t(typename simd_internal::reg<T, 2>::type_t value) : m(value) {}
-	explicit simd_pack_t(T value) : x(value), y(value) {}
-	simd_pack_t(T x, T y) : x(x), y(y) {}
-
-	template <typename T2>
-	explicit 	simd_pack_t(const simd_pack_t<2, T2>& value) : x(T(value.x)), y(T(value.y)) {}
+	SIMD_FORCEINLINE explicit			simd_pack_t(typename simd_internal::reg<T, 2>::type_t value) : m(value) {}
+	explicit /**/						simd_pack_t(T value) : x(value), y(value) {}
+	/**/								simd_pack_t(T x, T y) : x(x), y(y) {}
+	template <typename T2>	explicit 	simd_pack_t(const simd_pack_t<2, T2>& value) : x(T(value.x)), y(T(value.y)) {}
 
 	T& channel(int index) { assert(index >= 0 && index < 2); return index == 0 ? x : y; }
 	const T& channel(int index) const { assert(index >= 0 && index < 2); return index == 0 ? x : y; }
@@ -130,13 +116,11 @@ struct simd_pack_t<3, T> {
 	};
 	static constexpr int component_count() { return 3; }
 
-	SIMD_FORCEINLINE explicit simd_pack_t(typename simd_internal::reg<T, 3>::type_t value) : m(value) {}
-	explicit simd_pack_t(T value) : x(value), y(value), z(value) {}
-	simd_pack_t(T x, T y, T z) : x(x), y(y), z(z) {}
-	simd_pack_t(const simd_pack_t<2, T>& value, T z) : x(value.x), y(value.y), z(z) {}
-
-	template <typename T2>
-	explicit	simd_pack_t(const simd_pack_t<3, T2>& value) : x(T(value.x)), y(T(value.y)), z(T(value.z)) {}
+	SIMD_FORCEINLINE explicit			simd_pack_t(typename simd_internal::reg<T, 3>::type_t value) : m(value) {}
+	explicit 							simd_pack_t(T value) : x(value), y(value), z(value) {}
+	/**/								simd_pack_t(T x, T y, T z) : x(x), y(y), z(z) {}
+	/**/								simd_pack_t(const simd_pack_t<2, T>& value, T z) : x(value.x), y(value.y), z(z) {}
+	template <typename T2>	explicit	simd_pack_t(const simd_pack_t<3, T2>& value) : x(T(value.x)), y(T(value.y)), z(T(value.z)) {}
 
 	T& channel(int index) { assert(index >= 0 && index < 3); return (&x)[index]; }
 	const T& channel(int index) const { assert(index >= 0 && index < 3); return (&x)[index]; }
@@ -154,10 +138,10 @@ struct simd_pack_t<4, T> {
 	};
 	static constexpr int component_count() { return 4; }
 
-	SIMD_FORCEINLINE explicit simd_pack_t(typename simd_internal::reg<T, 4>::type_t value) : m(value) {}
-	explicit simd_pack_t(T value) : x(value), y(value), z(value), w(value) {}
-	simd_pack_t(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
-	simd_pack_t(const simd_pack_t<3, T>& value, T w) : x(value.x), y(value.y), z(value.z), w(w) {}
+	SIMD_FORCEINLINE explicit 			simd_pack_t(typename simd_internal::reg<T, 4>::type_t value) : m(value) {}
+	explicit 							simd_pack_t(T value) : x(value), y(value), z(value), w(value) {}
+	/**/								simd_pack_t(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
+	/**/								simd_pack_t(const simd_pack_t<3, T>& value, T w) : x(value.x), y(value.y), z(value.z), w(w) {}
 
 	template <typename T2>
 	explicit simd_pack_t(const simd_pack_t<4, T2>& value)
