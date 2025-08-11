@@ -58,9 +58,9 @@
 // Fast calls
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #if defined(_MSC_VER)
-#	define FUNC_FASTCALL __fastcall
+#	define FORCE_FASTCALL __fastcall
 #elif defined(__GCC__)
-#	define FUNC_FASTCALL  __attribute__((fastcall))
+#	define FORCE_FASTCALL  __attribute__((fastcall))
 #endif
 
 
