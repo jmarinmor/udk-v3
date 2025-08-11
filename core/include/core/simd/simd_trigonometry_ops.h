@@ -118,21 +118,9 @@ namespace simd {
     return r;
   }
 
-} // namespace simd
-// simd_trig_ops.h
-#pragma once
-#include <simd/simd_types.h>
+}
 
 namespace simd {
-
-  // ----------------------------------------------------------
-  // Helpers
-  // ----------------------------------------------------------
-
-  // π constante
-  template<typename T> struct _pi_;
-  template<> struct _pi_<float>  { static constexpr float  v = 3.14159265358979323846f; };
-  template<> struct _pi_<double> { static constexpr double v = 3.141592653589793238462643383279502884; };
 
   // ----------------------------------------------------------
   // Escalares (float / double)
@@ -156,6 +144,10 @@ namespace simd {
   template<typename T> SIMD_FORCEINLINE T  acosh(const T& a) { using std::acosh; return acosh(a); }
   template<typename T> SIMD_FORCEINLINE T  asinh(const T& a) { using std::asinh; return asinh(a); }
   template<typename T> SIMD_FORCEINLINE T  atanh(const T& a) { using std::atanh; return atanh(a); }
+}
+
+
+namespace simd {
 
   // wrap [-π, π)
   template<typename T>

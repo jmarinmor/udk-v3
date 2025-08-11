@@ -165,7 +165,7 @@ namespace simd
 	template<typename T> struct _pi_;
 	template<> struct _pi_<float> { static constexpr float  v = 3.14159265358979323846f; };
 	template<> struct _pi_<double> { static constexpr double v = 3.141592653589793238462643383279502884; };
-
+	
 	template<typename T> struct _half_pi_;
 	template<> struct _half_pi_<float> { static constexpr float  v = 1.57079632679489661923f; };
 	template<> struct _half_pi_<double> { static constexpr double v = 1.57079632679489661923132169163975144; };
