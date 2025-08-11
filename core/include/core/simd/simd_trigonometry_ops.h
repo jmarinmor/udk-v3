@@ -5,14 +5,6 @@
 namespace simd {
 
   // ----------------------------------------------------------
-  // Helpers
-  // ----------------------------------------------------------
-  template<int D, typename T>
-  SIMD_FORCEINLINE simd_pack_t<D,T> splat(T v) { return simd_pack_t<D,T>(v); }
-
-  // π constante
-
-  // ----------------------------------------------------------
   // Escalares (float / double)
   // ----------------------------------------------------------
   template<typename T> SIMD_FORCEINLINE T radians(const T& degrees) { return degrees * (T(_pi_<T>::v) / T(180)); }
@@ -34,6 +26,10 @@ namespace simd {
   template<typename T> SIMD_FORCEINLINE T  acosh(const T& a) { using std::acosh; return acosh(a); }
   template<typename T> SIMD_FORCEINLINE T  asinh(const T& a) { using std::asinh; return asinh(a); }
   template<typename T> SIMD_FORCEINLINE T  atanh(const T& a) { using std::atanh; return atanh(a); }
+}
+
+
+namespace simd {
 
   // wrap [-π, π)
   template<typename T>
@@ -120,129 +116,13 @@ namespace simd {
 
 }
 
-namespace simd {
-
-  // ----------------------------------------------------------
-  // Escalares (float / double)
-  // ----------------------------------------------------------
-  template<typename T> SIMD_FORCEINLINE T radians(const T& degrees) { return degrees * (T(_pi_<T>::v) / T(180)); }
-  template<typename T> SIMD_FORCEINLINE T degrees(const T& radians) { return radians * (T(180) / T(_pi_<T>::v)); }
-
-  template<typename T> SIMD_FORCEINLINE T  cos (const T& a) { using std::cos;  return cos(a); }
-  template<typename T> SIMD_FORCEINLINE T  sin (const T& a) { using std::sin;  return sin(a); }
-  template<typename T> SIMD_FORCEINLINE T  tan (const T& a) { using std::tan;  return tan(a); }
-
-  template<typename T> SIMD_FORCEINLINE T  cosh(const T& a) { using std::cosh; return cosh(a); }
-  template<typename T> SIMD_FORCEINLINE T  sinh(const T& a) { using std::sinh; return sinh(a); }
-  template<typename T> SIMD_FORCEINLINE T  tanh(const T& a) { using std::tanh; return tanh(a); }
-
-  template<typename T> SIMD_FORCEINLINE T  acos(const T& a) { using std::acos; return acos(a); }
-  template<typename T> SIMD_FORCEINLINE T  asin(const T& a) { using std::asin; return asin(a); }
-  template<typename T> SIMD_FORCEINLINE T  atan(const T& a) { using std::atan; return atan(a); }
-  template<typename T> SIMD_FORCEINLINE T  atan2(const T& y, const T& x) { using std::atan2; return atan2(y, x); }
-
-  template<typename T> SIMD_FORCEINLINE T  acosh(const T& a) { using std::acosh; return acosh(a); }
-  template<typename T> SIMD_FORCEINLINE T  asinh(const T& a) { using std::asinh; return asinh(a); }
-  template<typename T> SIMD_FORCEINLINE T  atanh(const T& a) { using std::atanh; return atanh(a); }
-}
 
 
-namespace simd {
-
-  // wrap [-π, π)
-  template<typename T>
-  SIMD_FORCEINLINE T wrap_angle(T a) {
-    T two_pi = T(2) * T(_two_pi_<T>::v);
-    a = std::fmod(a + T(_pi_<T>::v), two_pi);
-    if (a < T(0)) a += two_pi;
-    return a - T(_pi_<T>::v);
-  }
-
-  // ----------------------------------------------------------
-  // Packs genéricos (por-lane)
-  // ----------------------------------------------------------
-  template<int D, typename T>
-  SIMD_FORCEINLINE simd_pack_t<D,T> radians(const simd_pack_t<D,T>& deg) {
-    simd_pack_t<D,T> r(T{});
-    const T k = T(_pi_<T>::v) / T(180);
-    for (int i=0;i<D;++i) (&r.x)[i] = (&deg.x)[i] * k;
-    return r;
-  }
-  template<int D, typename T>
-  SIMD_FORCEINLINE simd_pack_t<D,T> degrees(const simd_pack_t<D,T>& rad) {
-    simd_pack_t<D,T> r(T{});
-    const T k = T(180) / T(_pi_<T>::v);
-    for (int i=0;i<D;++i) (&r.x)[i] = (&rad.x)[i] * k;
-    return r;
-  }
-
-  // trig / hyperbolic / inverse (element-wise)
-  #define SIMD_TRIG_UNARY(name) \
-    template<int D, typename T> \
-    SIMD_FORCEINLINE simd_pack_t<D,T> name(const simd_pack_t<D,T>& a) { \
-      simd_pack_t<D,T> r(T{}); \
-      using std::name; \
-      for (int i=0;i<D;++i) (&r.x)[i] = name((&a.x)[i]); \
-      return r; \
-    }
-
-  SIMD_TRIG_UNARY(cos)
-  SIMD_TRIG_UNARY(sin)
-  SIMD_TRIG_UNARY(tan)
-  SIMD_TRIG_UNARY(cosh)
-  SIMD_TRIG_UNARY(sinh)
-  SIMD_TRIG_UNARY(tanh)
-  SIMD_TRIG_UNARY(acos)
-  SIMD_TRIG_UNARY(asin)
-  SIMD_TRIG_UNARY(atan)
-  SIMD_TRIG_UNARY(acosh)
-  SIMD_TRIG_UNARY(asinh)
-  SIMD_TRIG_UNARY(atanh)
-
-  #undef SIMD_TRIG_UNARY
-
-  template<int D, typename T>
-  SIMD_FORCEINLINE simd_pack_t<D,T> atan2(const simd_pack_t<D,T>& y, const simd_pack_t<D,T>& x) {
-    simd_pack_t<D,T> r(T{});
-    using std::atan2;
-    for (int i=0;i<D;++i) (&r.x)[i] = atan2((&y.x)[i], (&x.x)[i]);
-    return r;
-  }
-  template<int D, typename T>
-  SIMD_FORCEINLINE simd_pack_t<D,T> atan2(const simd_pack_t<D,T>& y, T x) {
-    return atan2(y, splat<D,T>(x));
-  }
-  template<int D, typename T>
-  SIMD_FORCEINLINE simd_pack_t<D,T> atan2(T y, const simd_pack_t<D,T>& x) {
-    return atan2(splat<D,T>(y), x);
-  }
-
-  template<int D, typename T>
-  SIMD_FORCEINLINE simd_pack_t<D,T> wrap_angle(const simd_pack_t<D,T>& a) {
-    simd_pack_t<D,T> r(T{});
-    using std::fmod;
-    const T two_pi = T(2) * T(_pi_<T>::v);
-    for (int i=0;i<D;++i) {
-      T v = (&a.x)[i];
-      v = fmod(v + T(_pi_<T>::v), two_pi);
-      if (v < T(0)) v += two_pi;
-      (&r.x)[i] = v - T(_pi_<T>::v);
-    }
-    return r;
-  }
-
-} // namespace simd
 
 
 
 namespace simd {
 
-
-template<int D, typename T>
-SIMD_FORCEINLINE simd_pack_t<D,T> splat(T v){ return simd_pack_t<D,T>(v); }
-
-template<typename T> SIMD_FORCEINLINE T absT(T x){ return x < T(0) ? -x : x; }
-template<typename T> SIMD_FORCEINLINE T sgnT(T x){ return (x>T(0)) - (x<T(0)); }
 
 // fmod sin <cmath> para wrap (suficiente para fast trig)
 template<typename T>
