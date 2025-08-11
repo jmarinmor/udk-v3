@@ -3,11 +3,9 @@
 
 #include <simd/simd_types.h>
 
-namespace simd {
+namespace simd 
+{
 
-  // ==========================================================
-  //  Declaraciones genéricas (ESCALAR)
-  // ==========================================================
   // mod: fmod (hacia 0) -> a - b * trunc(a/b)
   template<typename T> SIMD_FORCEINLINE T mod (const T& a, const T& b);
   // modf: devuelve frac y escribe int en *iptr
@@ -21,6 +19,10 @@ namespace simd {
   template<typename T> SIMD_FORCEINLINE T isnan(const T& v);   // 1.0 si NaN, 0.0 si no
   template<typename T> SIMD_FORCEINLINE T isinf(const T& v);   // 1.0 si +-inf
   template<typename T> SIMD_FORCEINLINE T isfinite(const T& v);// 1.0 si finito
+}
+
+namespace simd 
+{
 
   // ---------- ESCALAR: float/double ----------
   template<> SIMD_FORCEINLINE float  mod<float >(const float&  a, const float&  b) { return std::fmod(a,b); }

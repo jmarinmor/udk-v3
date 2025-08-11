@@ -16,6 +16,57 @@ namespace simd
 // rcp
 namespace simd 
 {
+	SIMD_GEN_EXPAND(float, rcp, rcp)
+	SIMD_GEN_EXPAND(double, rcp, rcp)
+}
+
+namespace simd
+{
+	#define SIMD_GEN_BASIC_OPS_ALL(_func, _op, _type) \
+		SIMD_GEN_BASIC_OP_4(_func, _op, _type)\
+		SIMD_GEN_BASIC_OP_3(_func, _op, _type)\
+		SIMD_GEN_BASIC_OP_2(_func, _op, _type)
+
+
+
+	#define SIMD_GEN_BASIC_OPS(_type) \
+		SIMD_GEN_BASIC_OP(_type,   add, +) \
+		SIMD_GEN_BASIC_OP(_type,   sub, -) \
+		SIMD_GEN_BASIC_OP(_type,   mul, *) \
+		SIMD_GEN_BASIC_OP(_type,   div, /) \
+		SIMD_GEN_BASIC_OP(_type,   min, <?) \
+		SIMD_GEN_BASIC_OP(_type,   max, >?)
+
+	SIMD_GEN_BASIC_OP(uint8_t)
+	SIMD_GEN_BASIC_OP(uint16_t)
+	SIMD_GEN_BASIC_OP(uint32_t)
+	SIMD_GEN_BASIC_OP(uint64_t)
+	SIMD_GEN_BASIC_OP(int8_t)
+	SIMD_GEN_BASIC_OP(int16_t)
+	SIMD_GEN_BASIC_OP(int32_t)
+	SIMD_GEN_BASIC_OP(int64_t)
+	SIMD_GEN_BASIC_OP(float)
+	SIMD_GEN_BASIC_OP(double)
+}
+
+
+
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Especializaciones
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace simd 
+{
 	template <>	SIMD_FORCEINLINE float			rcp<float>(const float& v) { return 1.0f / v; }
 #if defined(__SSE__) || defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP>=1)
 	SIMD_FORCEINLINE __m128 sse_rcp_nr_ps(__m128 a) {
@@ -35,13 +86,6 @@ namespace simd
 		x = vmulq_f32(x, vrecpsq_f32(v.m, x));
 		return simd_pack_t<4, float>(x);
 	}
-	//template <> SIMD_FORCEINLINE simd_pack_t<2, float>
-	//rcp(const simd_pack_t<2, float>& v) {
-	//	float32x2_t x = vrecpe_f32(v.m);
-	//	x = vmul_f32(x, vrecps_f32(v.m, x));
-	//	x = vmul_f32(x, vrecps_f32(v.m, x));
-	//	return simd_pack_t<2, float>(x);
-	//}
 #elif defined(__ARM_NEON) || defined(__ARM_NEON__)
 	template <> SIMD_FORCEINLINE simd_pack_t<4, float> rcp(const simd_pack_t<4, float>& v) 
 	{
@@ -61,112 +105,6 @@ namespace simd
 	template <> SIMD_FORCEINLINE simd_pack_t<4, float>		rcp(const simd_pack_t<4, float>& v) { return simd_pack_t<4, float>(sse_rcp_nr_ps(v.m)); }
 #endif
 
-}
-
-
-namespace simd 
-{
-
-	// Fallbacks escalares (genéricos)
-	template<int D, typename T>
-	SIMD_FORCEINLINE simd_pack_t<D, T> add(const simd_pack_t<D, T>& a, const simd_pack_t<D, T>& b) {
-		simd_pack_t<D, T> r(T{});
-		for (int i = 0;i < D;++i) (&r.x)[i] = (&a.x)[i] + (&b.x)[i];
-		return r;
-	}
-	template<int D, typename T>
-	SIMD_FORCEINLINE simd_pack_t<D, T> sub(const simd_pack_t<D, T>& a, const simd_pack_t<D, T>& b) {
-		simd_pack_t<D, T> r(T{});
-		for (int i = 0;i < D;++i) (&r.x)[i] = (&a.x)[i] - (&b.x)[i];
-		return r;
-	}
-	template<int D, typename T>
-	SIMD_FORCEINLINE simd_pack_t<D, T> mul(const simd_pack_t<D, T>& a, const simd_pack_t<D, T>& b) {
-		simd_pack_t<D, T> r(T{});
-		for (int i = 0;i < D;++i) (&r.x)[i] = (&a.x)[i] * (&b.x)[i];
-		return r;
-	}
-	template<int D, typename T>
-	SIMD_FORCEINLINE simd_pack_t<D, T> div(const simd_pack_t<D, T>& a, const simd_pack_t<D, T>& b) {
-		simd_pack_t<D, T> r(T{});
-		for (int i = 0;i < D;++i) (&r.x)[i] = (&a.x)[i] / (&b.x)[i];
-		return r;
-	}
-	template<int D, typename T>
-	SIMD_FORCEINLINE simd_pack_t<D, T> min(const simd_pack_t<D, T>& a, const simd_pack_t<D, T>& b) {
-		simd_pack_t<D, T> r(T{});
-		for (int i = 0;i < D;++i) (&r.x)[i] = (&a.x)[i] <= (&b.x)[i] ? (&a.x)[i] : (&b.x)[i];
-		return r;
-	}
-	template<int D, typename T>
-	SIMD_FORCEINLINE simd_pack_t<D, T> max(const simd_pack_t<D, T>& a, const simd_pack_t<D, T>& b) {
-		simd_pack_t<D, T> r(T{});
-		for (int i = 0;i < D;++i) (&r.x)[i] = (&a.x)[i] >= (&b.x)[i] ? (&a.x)[i] : (&b.x)[i];
-		return r;
-	}
-}
-
-namespace simd
-{
-	#define SIMD_GEN_BASIC_OP_4(_func, _op, _type) \
-	template<> SIMD_FORCEINLINE simd_pack_t<4, _type>	_func<4, _type>(const simd_pack_t<4, _type>& a, const simd_pack_t<4, _type>& b)  \
-	{ \
-		return simd_pack_t<4, _type>(a.x _op b.x, a.y _op b.y, a.z _op b.z, a.w _op b.w); \
-	} \
-	template<> SIMD_FORCEINLINE simd_pack_t<4, _type>	_func<4, _type>(const simd_pack_t<4, _type>& a, const _type& b)  \
-	{ \
-		return simd_pack_t<4, _type>(a.x _op b, a.y _op b, a.z _op b, a.w _op b); \
-	} \
-	template<> SIMD_FORCEINLINE simd_pack_t<4, _type>	_func<4, _type>(const _type& a, const simd_pack_t<4, _type>& b)  \
-	{ \
-		return simd_pack_t<4, _type>(a _op b.x, a _op b.y, a _op b.z, a _op b.w); \
-	} \
-
-	#define SIMD_GEN_BASIC_OP_3(_func, _op, _type) \
-	template<> SIMD_FORCEINLINE simd_pack_t<3, _type>	_func<3, _type>(const simd_pack_t<3, _type>& a, const simd_pack_t<3, _type>& b)  \
-	{ \
-		return simd_pack_t<3, _type>(a.x _op b.x, a.y _op b.y, a.z _op b.z); \
-	} \
-	template<> SIMD_FORCEINLINE simd_pack_t<3, _type>	_func<3, _type>(const simd_pack_t<3, _type>& a, const _type& b)  \
-	{ \
-		return simd_pack_t<3, _type>(a.x _op b, a.y _op b, a.z _op b); \
-	} \
-	template<> SIMD_FORCEINLINE simd_pack_t<3, _type>	_func<3, _type>(const _type& a, const simd_pack_t<3, _type>& b)  \
-	{ \
-		return simd_pack_t<3, _type>(a _op b.x, a _op b.y, a _op b.z); \
-	} \
-	
-	#define SIMD_GEN_BASIC_OP_2(_func, _op, _type) \
-	template<> SIMD_FORCEINLINE simd_pack_t<2, _type>	_func<2, _type>(const simd_pack_t<2, _type>& a, const simd_pack_t<2, _type>& b)  \
-	{ \
-		return simd_pack_t<2, _type>(a.x _op b.x, a.y _op b.y); \
-	} \
-	template<> SIMD_FORCEINLINE simd_pack_t<2, _type>	_func<2, _type>(const simd_pack_t<2, _type>& a, const _type& b)  \
-	{ \
-		return simd_pack_t<2, _type>(a.x _op b, a.y _op b); \
-	} \
-	template<> SIMD_FORCEINLINE simd_pack_t<2, _type>	_func<2, _type>(const _type& a, const simd_pack_t<2, _type>& b)  \
-	{ \
-		return simd_pack_t<2, _type>(a _op b.x, a _op b.y); \
-	} \
-
-	#define SIMD_GEN_BASIC_OPS_ALL(_func, _op, _type) \
-		SIMD_GEN_BASIC_OP_4(_func, _op, _type)\
-		SIMD_GEN_BASIC_OP_3(_func, _op, _type)\
-		SIMD_GEN_BASIC_OP_2(_func, _op, _type)
-
-	#define SIMD_GEN_BASIC_OPS(_type) \
-		SIMD_GEN_BASIC_OPS_ALL(mul, *, _type)\
-		SIMD_GEN_BASIC_OPS_ALL(add, +, _type)\
-		SIMD_GEN_BASIC_OPS_ALL(sub, -, _type)\
-		SIMD_GEN_BASIC_OPS_ALL(div, /, _type)
-
-	SIMD_GEN_BASIC_OPS(uint32_t)
-	SIMD_GEN_BASIC_OPS(uint64_t)
-	SIMD_GEN_BASIC_OPS(int32_t)
-	SIMD_GEN_BASIC_OPS(int64_t)
-	SIMD_GEN_BASIC_OPS(float)
-	SIMD_GEN_BASIC_OPS(double)
 }
 
 namespace simd 
@@ -315,8 +253,11 @@ namespace simd
 } // namespace simd
 
 
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Operators
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 namespace simd
 {
 	// Binarios vector-vector

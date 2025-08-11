@@ -1,8 +1,14 @@
-// simd_bit_ops.h
 #pragma once
 #include <simd/simd_types.h>
-//#include <cstdint>
-//#include <cstring>
+
+namespace simd
+{
+	template <typename T>	SIMD_FORCEINLINE T	bit_and(const T& a, const T& b) { return a & b; }
+	template <typename T>	SIMD_FORCEINLINE T	bit_or(const T& a, const T& b) { return a | b; }
+	template <typename T>	SIMD_FORCEINLINE T	bit_xor(const T& a, const T& b) { return a ^ b; }
+	template <typename T>	SIMD_FORCEINLINE T	bit_not(const T& v) { return !v;}
+}
+
 
 namespace simd {
 
@@ -83,7 +89,18 @@ namespace simd {
 
 } // namespace simd
 
-// ==================== ESPECIALIZACIONES SIMD ====================
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Especializaciones
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #if defined(__AVX__) || defined(_M_AVX)
 // AVX: float8 / double4
 template<> SIMD_FORCEINLINE simd_pack_t<8, float>  simd::bit_and(const simd_pack_t<8, float>& a, const simd_pack_t<8, float>& b) { return simd_pack_t<8, float>(_mm256_and_ps(a.m, b.m)); }

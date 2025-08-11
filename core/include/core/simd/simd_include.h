@@ -12,13 +12,8 @@
 #endif
 
 // AVX
-#if defined(__AVX__) || defined(_M_AVX)
-  #include <immintrin.h>   // AVX (incluye la mayoría de intrínsecos SSE también)
-#endif
-
-// AVX2
-#if defined(__AVX2__) || defined(_M_AVX2)
-  #include <immintrin.h>   // AVX2 (también cubierto por <immintrin.h>)
+#if defined(__AVX__) || defined(_M_AVX) || defined(__AVX2__) || defined(_M_AVX2)
+  #include <immintrin.h>
 #endif
 
 // ===============================================
