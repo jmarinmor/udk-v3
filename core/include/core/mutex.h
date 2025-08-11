@@ -1,54 +1,123 @@
+// mutex.h
 #pragma once
+#include <atomic>
+#include <thread>
+#include <cstdint>
 
-#include <pre/compiler.h>
-#include <pre/lang.h>
-#include <core/atomic.h>
+//
+// --- Hints por arquitectura para espera activa ---
+#if defined(__x86_64__) || defined(_M_X64)
+// x86-64: PAUSE garantizado
+  #include <immintrin.h>
+  inline void cpu_relax() noexcept { _mm_pause(); }
 
+#elif defined(__i386) || defined(_M_IX86)
+// x86-32: usa _mm_pause si hay SSE2; si no, cae a yield
+  #if defined(__SSE2__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+    #include <immintrin.h>
+    inline void cpu_relax() noexcept { _mm_pause(); }
+  #else
+    inline void cpu_relax() noexcept { std::this_thread::yield(); }
+  #endif
 
-void	enter_to_critical_section();
-void	exit_from_critical_section();
+#elif defined(__aarch64__) || defined(__arm__)
+// ARM / AArch64: YIELD
+  inline void cpu_relax() noexcept { asm volatile("yield" ::: "memory"); }
 
-void	thread_yield();
+#else
+// Fallback genérico
+  inline void cpu_relax() noexcept { std::this_thread::yield(); }
+#endif
 
-FAST_FNC(void)	spinlock_init(volatile int*);
-FAST_FNC(void)	spinlock_lock(volatile int*);
-FAST_FNC(void)	spinlock_unlock(volatile int*);
+//
+// --- Tamaño de línea de caché ---
+#if defined(__cpp_lib_hardware_interference_size)
+  #include <new>
+  constexpr std::size_t CACHELINE = std::hardware_destructive_interference_size;
+#else
+  constexpr std::size_t CACHELINE = 64; // valor típico
+#endif
 
-FAST_FNC(void)	memory_lock(const void*);
-FAST_FNC(void)	memory_unlock(const void*);
-FAST_FNC(void)	memory_lock();
-FAST_FNC(void)	memory_unlock();
-
-
-
-class spinlock_t
+//
+// --- Spinlock TTAS base (baja contención) ---
+struct spinlock_t 
 {
-	void exit_from_thread();
-	volatile int _lock;
-public:
-	inline	spinlock_t():_lock(0){}
-	inline	~spinlock_t(){}
-	
-	FORCE_INLINE	bool	try_lock()	{ return atomic_xchg_acq_rel_i32(&_lock, 1u) == 0u; }
-	inline			void	lock()
+    std::atomic<bool> locked{false};
+    static constexpr int kMaxSpins = 1 << 10; // tope de backoff
+
+    // TTAS con backoff exponencial y cpu_relax
+    inline void lock() noexcept 
 	{
-		for (;;)
+        int spins = 1;
+        for (;;) 
 		{
-			if(try_lock())
-				return;
-			else
-				thread_yield();
-		}
-	}
-	FORCE_INLINE	void	unlock()	{ atomic_store_release_i32(&_lock, 0u); }
+            // Fase de lectura (no invalida caché)
+            while (locked.load(std::memory_order_relaxed)) 
+			{
+                for (int i = 0; i < spins; ++i) cpu_relax();
+                if (spins < kMaxSpins) spins <<= 1;
+            }
+            // Intento de adquirir (única escritura)
+            bool expected = false;
+            if (locked.compare_exchange_weak(expected, true,
+                                             std::memory_order_acquire,
+                                             std::memory_order_relaxed)) {
+                return;
+            }
+            // otro hilo se adelantó; reintenta
+        }
+    }
+
+    // Variante "busy" pero con relax + yield periódico por cortesía
+    inline void lock_strong() noexcept {
+        int spins = 0;
+        while (!try_lock()) {
+            cpu_relax();
+            if (++spins >= 1024) { std::this_thread::yield(); spins = 0; }
+        }
+    }
+
+    [[nodiscard]] inline bool try_lock() noexcept {
+        bool expected = false;
+        return locked.compare_exchange_strong(expected, true,
+                                              std::memory_order_acquire,
+                                              std::memory_order_relaxed);
+    }
+
+    inline void unlock() noexcept {
+        locked.store(false, std::memory_order_release);
+    }
 };
 
-struct spinlock_guard_t 
-{
-	explicit inline spinlock_guard_t(spinlock_t &locker):_locker(locker) { _locker.lock(); }
-	explicit inline spinlock_guard_t(const spinlock_t &locker):_locker(const_cast<spinlock_t&>(locker)) { _locker.lock(); }
-	inline ~spinlock_guard_t() { _locker.unlock(); }
-
-	private:
-	spinlock_t& _locker;
+//
+// --- Spinlock alineado para evitar false sharing en arrays/vectores ---
+// Nota: sizeof(T) será múltiplo de alignof(T), por lo que en contenedores
+//       cada elemento quedará en su propia línea de caché.
+struct alignas(CACHELINE) spinlock_aligned_t : public spinlock_t {
 };
+
+// Comprobaciones de alineación/tamaño (recomendadas si vas a tener arrays)
+static_assert(alignof(spinlock_aligned_t) >= CACHELINE, "spinlock_aligned_t debe alinearse a línea de caché");
+static_assert(sizeof(spinlock_aligned_t) % alignof(spinlock_aligned_t) == 0, "sizeof(spinlock_aligned_t) debe ser múltiplo de su alineación");
+
+
+template<class Spinlock>
+struct lock_guard_spin {
+    explicit lock_guard_spin(Spinlock& s) : s_(s) { s_.lock(); }
+    ~lock_guard_spin() { s_.unlock(); }
+    lock_guard_spin(const lock_guard_spin&) = delete;
+    lock_guard_spin& operator=(const lock_guard_spin&) = delete;
+private:
+    Spinlock& s_;
+};
+
+
+
+
+void enter_to_critical_section();
+void exit_from_critical_section();
+
+void memory_lock(const void*);
+void memory_unlock(const void*);
+void memory_lock();
+void memory_unlock();
