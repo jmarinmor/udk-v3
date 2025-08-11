@@ -368,15 +368,6 @@ namespace simd {
 
 namespace simd {
 
-  // -------------------------------------------
-  // bit_cast seguro (sin UB)
-  // -------------------------------------------
-  template<typename To, typename From>
-  SIMD_FORCEINLINE To _bit_cast(const From& src) noexcept {
-    static_assert(sizeof(To)==sizeof(From), "_bit_cast: tamaño incompatible");
-    To dst; std::memcpy(&dst, &src, sizeof(To)); return dst;
-  }
-
   // ===========================================
   // frexp / ldexp  (float)
   // ===========================================
