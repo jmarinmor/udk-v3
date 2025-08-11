@@ -4,7 +4,6 @@
 
 namespace simd
 {
-
 	template <typename T>	SIMD_FORCEINLINE T sqrt(const T& v) { return static_cast<T>(std::sqrt(static_cast<double>(v))); }
 	template <typename T>	SIMD_FORCEINLINE T rsq(const T& v) { return T(1) / sqrt(v); }
 
@@ -190,9 +189,6 @@ namespace simd
 	template <> SIMD_FORCEINLINE simd_pack_t<2, double>	rsq(const simd_pack_t<2, double>& v) { return simd_pack_t<2, double>(1.0 / std::sqrt(v.x), 1.0 / std::sqrt(v.y)); }
 #endif
 
-	// ============================================================
-	//  Especializaciones SIMD — DOUBLE4 (simd_pack_t<4,double>)
-	// ============================================================
 #if defined(__AVX__) || defined(_M_AVX)
 	template <> SIMD_FORCEINLINE simd_pack_t<4, double>	sqrt(const simd_pack_t<4, double>& v) { return simd_pack_t<4, double>(_mm256_sqrt_pd(v.m)); }
 

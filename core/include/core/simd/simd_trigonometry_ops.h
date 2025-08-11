@@ -128,8 +128,6 @@ namespace simd {
   // ----------------------------------------------------------
   // Helpers
   // ----------------------------------------------------------
-  template<int D, typename T>
-  SIMD_FORCEINLINE simd_pack_t<D,T> splat(T v) { return simd_pack_t<D,T>(v); }
 
   // π constante
   template<typename T> struct _pi_;
@@ -162,9 +160,8 @@ namespace simd {
   // wrap [-π, π)
   template<typename T>
   SIMD_FORCEINLINE T wrap_angle(T a) {
-    using std::fmod;
-    T two_pi = T(2) * T(_pi_<T>::v);
-    a = fmod(a + T(_pi_<T>::v), two_pi);
+    T two_pi = T(2) * T(_two_pi_<T>::v);
+    a = std::fmod(a + T(_pi_<T>::v), two_pi);
     if (a < T(0)) a += two_pi;
     return a - T(_pi_<T>::v);
   }
