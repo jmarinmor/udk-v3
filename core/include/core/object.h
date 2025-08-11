@@ -60,6 +60,9 @@ struct handled_object_t : public object_t
 
 
 
+
+
+
 // Tag para adoptar un puntero que ya tiene una ref (p.ej., tras `new`)
 struct adopt_t { explicit adopt_t() = default; };
 inline constexpr adopt_t adopt{};
@@ -180,6 +183,8 @@ private:
 template <typename T>
 class ref<T, /*Atomic=*/true> {
   static_assert(std::is_base_of<object_t, T>::value, "T debe derivar de object_t");
+private:
+  std::atomic<T*> p_;
 public:
   using element_type = T;
 
@@ -269,9 +274,6 @@ public:
     while (!p_.compare_exchange_weak(a, b, std::memory_order_acq_rel)) {}
     while (!other.p_.compare_exchange_weak(b, a, std::memory_order_acq_rel)) {}
   }
-
-private:
-  std::atomic<T*> p_;
 };
 
 //--------------------------------------------------------------
