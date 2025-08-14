@@ -107,7 +107,7 @@ enum class vexel_interpolation_t : uint8_t
 	NONLINEAR
 };
 
-enum class vexel_bit_count_t : uint16_t
+enum class vexel_bit_format_t : uint16_t
 {
 	NONE = 0,
 	UNIFORM_8 = 1,
@@ -176,23 +176,144 @@ enum class vexel_resource_t : uint8_t
     CUBE
 };
 
+// SUGERENCIA: si quieres reforzar el contrato de 8 bits, puedes usar : uint8_t
 enum media_format_t : uint16_t
 {
-    UNKNOWN,
+    UNKNOWN = 0,
+    // VEXEL/recursos
     VEXEL_RESOURCE,
     VEXEL_RESOURCE_ARRAY_1D,
+
+    // Imagen raster comunes
     JPEG,
+    TGA,
+    TIFF,
     PNG,
+    BMP,
+    GIF,
+    WEBP,
+    HEIF,
+    HEIC,
+    AVIF,
+
+    // HDR / alto rango dinámico
+    HDR_RADIANCE,   // .hdr / .rgbe
+    OPENEXR,        // .exr
+
+    // Contenedores de texturas
+    DDS,            // DirectDraw Surface
+    KTX,            // Khronos Texture
+    KTX2,
+
+    // Iconografía
+    ICO,
+    CUR,
+
+    // Vectoriales / documento
+    SVG,
+    PDF,
+
+    // Compresiones específicas (ya tenías algunas)
     DXT1,
     DXT5,
     PVR2,
     PVR4,
+
+    // 3D/escena
+    GLTF,
+    GLB,
+    OBJ,
+    FBX,
+    STL,
+    PLY,
+
+    // Audio
     WAV,
-    OGG,
-    MP3
+    OGG,    // contenedor; suele albergar Vorbis/Opus
+    MP3,
+    FLAC,
+    AAC,
+    OPUS,
+    M4A,
+    AIFF,
+    CAF,
+    MIDI,
+
+    // Vídeo
+    MP4,
+    MOV,
+    MKV,
+    AVI,
+    WEBM
 };
 
 
+/*
+===============================================================================
+vexel_format_t — Layout de bits (uint64_t)
+-------------------------------------------------------------------------------
+Orden de bits: MSB → LSB
+-------------------------------------------------------------------------------
+[63:61]  _pad            (3)   Reservado (sin uso actual).
+[60:51]  space           (10)  vexel_space_t — Espacio de color (RGB, YUV, ...).
+[50:46]  order           (5)   vexel_order_t — Orden de componentes (RGBA, BGRA, ...).
+[45:42]  interpolation   (4)   vexel_interpolation_t — LINEAR / NONLINEAR.
+[41:34]  media_format    (8)   media_format_t — Formato/contenedor (PNG, JPEG, WAV, ...).
+[33:30]  resource        (4)   vexel_resource_t — ARRAY_1D/2D/3D, CUBE.
+[29]     has_lods        (1)   1 si el recurso incluye niveles de detalle (LODs).
+[28:26]  structure       (3)   vexel_struct_t — UNKNOWN/ONE/MANY.
+[25:16]  layout          (10)  vexel_layout_t — VECTOR_n, MATRIX, BLOCK_* (BCn/ASTC/etc.).
+[15]     is_signed       (1)   1 si los datos son con signo.
+[14]     is_normalized   (1)   1 si los datos están normalizados.
+[13:10]  number_format   (4)   vexel_number_format_t — INTEGER/FLOAT/FIXED/TYPELESS.
+[9:0]    bit_count       (10)  vexel_bit_count_t — bits por elemento o empaquetado.
+===============================================================================
+
+Constantes de desplazamiento (SHIFT) y máscara (MASK)
+-------------------------------------------------------------------------------
+Nombre    | Bits    | SHIFT | MASK (hex)
+----------+---------+-------+---------------------------
+PAD       | 63:61   |   61  | 0xE000000000000000
+SPACE     | 60:51   |   51  | 0x1FF8000000000000
+ORDER     | 50:46   |   46  | 0x007C000000000000
+INTP      | 45:42   |   42  | 0x00003C0000000000
+MEDIA_FMT | 41:34   |   34  | 0x000003FC00000000
+RESOURCE  | 33:30   |   30  | 0x00000003C0000000
+HAS_LODS  | 29      |   29  | 0x0000000200000000
+STRUCTURE | 28:26   |   26  | 0x00000001C0000000
+LAYOUT    | 25:16   |   16  | 0x0000000000FFF000
+IS_SIGNED | 15      |   15  | 0x0000000000008000
+IS_NORM   | 14      |   14  | 0x0000000000004000
+NUM_FMT   | 13:10   |   10  | 0x0000000000003C00
+BIT_COUNT | 9:0     |    0  | 0x00000000000003FF
+
+Notas:
+- El empaquetado ocupa 64 bits; los 3 bits superiores (_pad) quedan reservados.
+- Los campos enumerados (space/order/...) se guardan como sus valores integrales.
+- 'media_format' dispone de 8 bits (hasta 256 valores distintos).
+
+Helpers típicos (patrón de uso)
+-------------------------------------------------------------------------------
+- Obtener un campo:
+    value = (code & FIELD_MASK) >> FIELD_SHIFT;
+
+- Escribir un campo (sin afectar otros):
+    code = (code & ~FIELD_MASK) | ((uint64_t(value) << FIELD_SHIFT) & FIELD_MASK);
+
+Composición y parciales (recomendación)
+-------------------------------------------------------------------------------
+- Es común construir formatos “parciales” (semántica / recurso / estructura) y
+  fusionarlos con OR enmascarado. Por ejemplo:
+    code = (semantic.code  & (SPACE_MASK | ORDER_MASK | INTP_MASK)) |
+           (resource.code  & (MFMT_MASK  | RSRC_MASK | LODS_MASK | STRC_MASK)) |
+           (struct.code    & (LOUT_MASK  | SIGN_MASK | NORM_MASK | NFMT_MASK | BCNT_MASK));
+
+Validación mínima sugerida
+-------------------------------------------------------------------------------
+- Considerar válido si layout != vexel_layout_t::UNKNOWN:
+    bool ok = ((code & LOUT_MASK) >> LOUT_SHIFT) != uint64_t(vexel_layout_t::UNKNOWN);
+===============================================================================
+*/
 struct vexel_format_t {
     uint64_t code;
 
@@ -235,7 +356,7 @@ struct vexel_format_t {
         bool is_signed,
         bool is_normalized,
         vexel_number_format_t number_format,
-        vexel_bit_count_t bit_count
+        vexel_bit_format_t bit_count
     ) : code(0) {
         code = set_bits(code, SPACE_MASK, SPACE_SHIFT, static_cast<uint64_t>(space));
         code = set_bits(code, ORDER_MASK, ORDER_SHIFT, static_cast<uint64_t>(order));
@@ -275,7 +396,7 @@ struct vexel_format_t {
         bool is_signed,
         bool is_normalized,
         vexel_number_format_t number_format,
-        vexel_bit_count_t bit_count
+        vexel_bit_format_t bit_count
     ) : code(0) {
         code = set_bits(code, LOUT_MASK, LOUT_SHIFT, static_cast<uint64_t>(layout));
         code = is_signed ? (code | SIGN_MASK) : (code & ~SIGN_MASK);
@@ -310,7 +431,7 @@ struct vexel_format_t {
     inline bool                    is_signed()     const { return (code & SIGN_MASK) != 0; }
     inline bool                    is_normalized() const { return (code & NORM_MASK) != 0; }
     inline vexel_number_format_t   number_format() const { return static_cast<vexel_number_format_t>(get_bits(code, NFMT_MASK, NFMT_SHIFT)); }
-    inline vexel_bit_count_t       bit_count()     const { return static_cast<vexel_bit_count_t>(get_bits(code, BCNT_MASK, BCNT_SHIFT)); }
+    inline vexel_bit_format_t       bit_count()     const { return static_cast<vexel_bit_format_t>(get_bits(code, BCNT_MASK, BCNT_SHIFT)); }
 
     // Setters fluentes
     inline vexel_format_t& space(vexel_space_t v)                 { code = set_bits(code, SPACE_MASK, SPACE_SHIFT, (uint64_t)v); return *this; }
@@ -324,41 +445,52 @@ struct vexel_format_t {
     inline vexel_format_t& is_signed(bool v)                      { code = v ? (code | SIGN_MASK) : (code & ~SIGN_MASK); return *this; }
     inline vexel_format_t& is_normalized(bool v)                  { code = v ? (code | NORM_MASK) : (code & ~NORM_MASK); return *this; }
     inline vexel_format_t& number_format(vexel_number_format_t v) { code = set_bits(code, NFMT_MASK, NFMT_SHIFT, (uint64_t)v); return *this; }
-    inline vexel_format_t& bit_count(vexel_bit_count_t v)         { code = set_bits(code, BCNT_MASK, BCNT_SHIFT, (uint64_t)v); return *this; }
+    inline vexel_format_t& bit_count(vexel_bit_format_t v)         { code = set_bits(code, BCNT_MASK, BCNT_SHIFT, (uint64_t)v); return *this; }
 
     // Helpers
-    static inline vexel_bit_count_t uniform_from_bits(int bits) {
-        return (bits == 8) ? vexel_bit_count_t::UNIFORM_8 :
-               (bits == 16)? vexel_bit_count_t::UNIFORM_16 :
-               (bits == 32)? vexel_bit_count_t::UNIFORM_32 :
-               (bits == 64)? vexel_bit_count_t::UNIFORM_64 :
-               (bits == 128)?vexel_bit_count_t::UNIFORM_128 :
-               (bits == 256)?vexel_bit_count_t::UNIFORM_256 :
-               (bits == 512)?vexel_bit_count_t::UNIFORM_512 :
-               (bits == 1024)?vexel_bit_count_t::UNIFORM_1024 :
-               vexel_bit_count_t::NONE;
+    static inline vexel_bit_format_t uniform_from_bits(int bits) {
+        return (bits == 8) ? vexel_bit_format_t::UNIFORM_8 :
+               (bits == 16)? vexel_bit_format_t::UNIFORM_16 :
+               (bits == 32)? vexel_bit_format_t::UNIFORM_32 :
+               (bits == 64)? vexel_bit_format_t::UNIFORM_64 :
+               (bits == 128)?vexel_bit_format_t::UNIFORM_128 :
+               (bits == 256)?vexel_bit_format_t::UNIFORM_256 :
+               (bits == 512)?vexel_bit_format_t::UNIFORM_512 :
+               (bits == 1024)?vexel_bit_format_t::UNIFORM_1024 :
+               vexel_bit_format_t::NONE;
     }
     static inline bool validate(uint64_t v) {
         return ((v & LOUT_MASK) >> LOUT_SHIFT) != static_cast<uint64_t>(vexel_layout_t::UNKNOWN);
     }
 
     // Presets
-    static constexpr inline vexel_format_t VECx_F32(int n) {
-        return vexel_format_t(
-            vexel_space_t::RGB, vexel_order_t::RGBA, vexel_interpolation_t::LINEAR,
-            media_format_t::VEXEL_RESOURCE, vexel_resource_t::UNKNOWN, false,
-            vexel_struct_t::ONE, static_cast<vexel_layout_t>(n),
-            true, false, vexel_number_format_t::FLOAT, vexel_bit_count_t::UNIFORM_32
-        );
-    }
-    static constexpr inline vexel_format_t VECx_U8(int n) {
-        return vexel_format_t(
-            vexel_space_t::RGB, vexel_order_t::RGBA, vexel_interpolation_t::LINEAR,
-            media_format_t::VEXEL_RESOURCE, vexel_resource_t::UNKNOWN, false,
-            vexel_struct_t::ONE, static_cast<vexel_layout_t>(n),
-            false, false, vexel_number_format_t::INTEGER, vexel_bit_count_t::UNIFORM_8
-        );
-    }
+	static constexpr vexel_format_t VECx_Fx(int n, vexel_bit_format_t bit_format) { return vexel_format_t(static_cast<vexel_layout_t>(n), true, false, vexel_number_format_t::FLOAT, bit_format); }
+	static constexpr vexel_format_t VECx_Ux(int n, vexel_bit_format_t bit_format) { return vexel_format_t(static_cast<vexel_layout_t>(n), false, false, vexel_number_format_t::INTEGER, bit_format); }
+	static constexpr vexel_format_t VECx_Ix(int n, vexel_bit_format_t bit_format) { return vexel_format_t(static_cast<vexel_layout_t>(n), true, false, vexel_number_format_t::INTEGER, bit_format); }
+	static constexpr vexel_format_t VECx_UNx(int n, vexel_bit_format_t bit_format) { return vexel_format_t(static_cast<vexel_layout_t>(n), false, true, vexel_number_format_t::INTEGER, bit_format); }
+	
+
+    #define VEXEL_FORMAT_MAKE_PRESET(_sufix, _bit_count) \
+    static constexpr vexel_format_t VECx_##_sufix##_bit_count(int n) { return VECx_##_sufix##x(n, vexel_bit_format_t::UNIFORM_##_bit_count); } \
+	static constexpr vexel_format_t VEC1_##_sufix##_bit_count() { return VECx_##_sufix##_bit_count(1); } \
+	static constexpr vexel_format_t VEC2_##_sufix##_bit_count() { return VECx_##_sufix##_bit_count(2); } \
+	static constexpr vexel_format_t VEC3_##_sufix##_bit_count() { return VECx_##_sufix##_bit_count(3); } \
+	static constexpr vexel_format_t VEC4_##_sufix##_bit_count() { return VECx_##_sufix##_bit_count(4); }
+
+    VEXEL_FORMAT_MAKE_PRESET(F, 32)
+    VEXEL_FORMAT_MAKE_PRESET(F, 64)
+    VEXEL_FORMAT_MAKE_PRESET(U, 8)
+    VEXEL_FORMAT_MAKE_PRESET(U, 16)
+    VEXEL_FORMAT_MAKE_PRESET(U, 32)
+    VEXEL_FORMAT_MAKE_PRESET(U, 64)
+    VEXEL_FORMAT_MAKE_PRESET(UN, 8)
+    VEXEL_FORMAT_MAKE_PRESET(UN, 16)
+    VEXEL_FORMAT_MAKE_PRESET(UN, 32)
+    VEXEL_FORMAT_MAKE_PRESET(UN, 64)
+    VEXEL_FORMAT_MAKE_PRESET(I, 8)
+    VEXEL_FORMAT_MAKE_PRESET(I, 16)
+    VEXEL_FORMAT_MAKE_PRESET(I, 32)
+    VEXEL_FORMAT_MAKE_PRESET(I, 64)
 };
 
 static_assert(sizeof(vexel_format_t) == 8, "vexel_format_t must be 64-bit");
@@ -372,18 +504,17 @@ constexpr vexel_format_t operator&(const vexel_format_t& lhs, const vexel_format
     return vexel_format_t{ lhs.code & rhs.code };
 }
 
-static inline constexpr vexel_format_t merge(
-    const vexel_format_t& semantic,
-    const vexel_format_t& resource,
-    const vexel_format_t& structural) {
+static inline constexpr vexel_format_t merge(const vexel_format_t& semantic,
+                                             const vexel_format_t& resource,
+                                             const vexel_format_t& structural) {
 #if !defined(NDEBUG)
-    assert(fits_group(semantic.code,  SEM_MASK) && "semantic partial has bits outside SEM_MASK");
-    assert(fits_group(resource.code,  RES_MASK) && "resource partial has bits outside RES_MASK");
-    assert(fits_group(structural.code, STR_MASK) && "structural partial has bits outside STR_MASK");
+    assert(vexel_format_t::fits_group(semantic.code,  vexel_format_t::SEM_MASK) && "semantic partial has bits outside SEM_MASK");
+    assert(vexel_format_t::fits_group(resource.code,  vexel_format_t::RES_MASK) && "resource partial has bits outside RES_MASK");
+    assert(vexel_format_t::fits_group(structural.code, vexel_format_t::STR_MASK) && "structural partial has bits outside STR_MASK");
 #endif
     return vexel_format_t{
-        (semantic.code  & SEM_MASK) |
-        (resource.code  & RES_MASK) |
-        (structural.code & STR_MASK)
+        (semantic.code  & vexel_format_t::SEM_MASK) |
+        (resource.code  & vexel_format_t::RES_MASK) |
+        (structural.code & vexel_format_t::STR_MASK)
     };
 }
