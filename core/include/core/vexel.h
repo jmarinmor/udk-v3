@@ -163,23 +163,26 @@ enum class vexel_order_t : uint8_t
 enum class vexel_struct_t : uint8_t
 {
     UNKNOWN,
-    ONE,
-    MANY
+    SINGLE,
+    STRUCT_PART
 };
 
 enum class vexel_resource_t : uint8_t
 {
     UNKNOWN,
-    ARRAY_1D,
-    ARRAY_2D,
-    ARRAY_3D,
-    CUBE
+    ARRAY_1D = 1,
+    ARRAY_2D = 2,
+    ARRAY_3D = 3,
+    CUBE = 6
 };
 
 // SUGERENCIA: si quieres reforzar el contrato de 8 bits, puedes usar : uint8_t
 enum media_format_t : uint16_t
 {
     UNKNOWN = 0,
+
+    EXTERNAL_ID = 1,
+
     // VEXEL/recursos
     VEXEL_RESOURCE,
     VEXEL_RESOURCE_ARRAY_1D,
@@ -314,6 +317,10 @@ Validación mínima sugerida
     bool ok = ((code & LOUT_MASK) >> LOUT_SHIFT) != uint64_t(vexel_layout_t::UNKNOWN);
 ===============================================================================
 */
+struct vexel_format_t;
+static constexpr vexel_format_t merge(const vexel_format_t& semantic,
+                                             const vexel_format_t& resource,
+                                             const vexel_format_t& structural);
 struct vexel_format_t {
     uint64_t code;
 
@@ -491,6 +498,18 @@ struct vexel_format_t {
     VEXEL_FORMAT_MAKE_PRESET(I, 16)
     VEXEL_FORMAT_MAKE_PRESET(I, 32)
     VEXEL_FORMAT_MAKE_PRESET(I, 64)
+
+	static constexpr vexel_format_t TEXTURE(int dimension, bool has_lods = true, vexel_format_t format = vexel_format_t(0)) 
+    {            
+         return vexel_format_t(
+            vexel_format_t(vexel_space_t::RGB, vexel_order_t::RGBA, vexel_interpolation_t::LINEAR).code
+            |
+            vexel_format_t(media_format_t::VEXEL_RESOURCE, vexel_resource_t(dimension), has_lods, vexel_struct_t::ONE).code
+            |
+            format.code
+         );
+    }
+
 };
 
 static_assert(sizeof(vexel_format_t) == 8, "vexel_format_t must be 64-bit");
